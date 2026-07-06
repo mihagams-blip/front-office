@@ -1182,6 +1182,12 @@ export default function App() {
       .menu .tag { font-size:18px; margin:12px 0 26px; color:#4a4232; }
       .bigbtn { background:#E4762B; color:#fff; border:none; border-radius:12px; padding:16px 40px; font-family:'Archivo Black','Arial Black',sans-serif; font-size:20px; cursor:pointer; box-shadow:0 4px 0 #b3541a; }
       .linkbtn { background:none; border:none; color:#152744; text-decoration:underline; font-size:16px; margin-top:18px; cursor:pointer; font-family:inherit; font-weight:700; }
+      .menu-btns { display:flex; flex-direction:column; gap:12px; max-width:340px; margin:0 auto; }
+      .menu-btns .bigbtn { width:100%; }
+      .menu-group-lbl { margin-top:12px; font-size:13px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#7a6a4f; }
+      .bigbtn.franchise { background:#3a2a5c; box-shadow:0 4px 0 #241a3d; font-size:18px; padding:13px 40px; }
+      .menu-links { display:flex; gap:24px; justify-content:center; align-items:center; margin-top:28px; }
+      .menu-links .linkbtn { margin-top:0; }
       .win-banner { text-align:center; font-family:'Archivo Black','Arial Black',sans-serif; font-size:20px; color:#152744; background:#F0B429; border-radius:12px; padding:12px; margin-top:10px; }
       .ai-overlay { position:fixed; inset:0; background:rgba(12,18,32,.62); z-index:35; display:flex; align-items:center; justify-content:center; }
       .ai-box { background:#152744; color:#F5EBDC; border-radius:16px; padding:22px 30px; text-align:center; font-family:'Archivo Black','Arial Black',sans-serif; font-size:18px; box-shadow:0 8px 30px rgba(0,0,0,.5); }
@@ -1243,11 +1249,16 @@ export default function App() {
         <div className="wrap menu">
           <h1>FRONT<br />OFFICE</h1>
           <div className="tag">Remi 500 za košarkarske generalne menedžerje.<br />116 pravih igralcev · plačni limit · draft picki in dražbe.</div>
-          <button className="bigbtn" onClick={start}>Hitra sezona (do {TARGET})</button><br />
-          <button className="bigbtn" style={{ background: "#3a2a5c", marginTop: 4 }} onClick={() => startFranchise(3)}>🏆 Franšiza · 3 sezone</button><br />
-          <button className="bigbtn" style={{ background: "#3a2a5c", marginTop: 4 }} onClick={() => startFranchise(5)}>🏆 Franšiza · 5 sezon</button><br />
-          <button className="linkbtn" onClick={() => { loadLeaderboard(); setScreen("leaderboard"); }}>🏅 Lestvica</button>
-          <button className="linkbtn" onClick={() => setShowRules(true)}>Pravila</button>
+          <div className="menu-btns">
+            <button className="bigbtn" onClick={start}>Hitra sezona (do {TARGET})</button>
+            <div className="menu-group-lbl">🏆 Franšiza · več sezon</div>
+            <button className="bigbtn franchise" onClick={() => startFranchise(3)}>3 sezone</button>
+            <button className="bigbtn franchise" onClick={() => startFranchise(5)}>5 sezon</button>
+          </div>
+          <div className="menu-links">
+            <button className="linkbtn" onClick={() => { loadLeaderboard(); setScreen("leaderboard"); }}>🏅 Lestvica</button>
+            <button className="linkbtn" onClick={() => setShowRules(true)}>Pravila</button>
+          </div>
         </div>
         {showRules && <Rules onClose={() => setShowRules(false)} />}
       </div>
