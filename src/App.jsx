@@ -1115,10 +1115,25 @@ export default function App() {
       .roster-grid { display:flex; flex-wrap:wrap; gap:6px; }
       .slot-empty { width:72px; height:60px; border:2px dashed #c9b892; border-radius:8px; display:flex; align-items:center; justify-content:center; color:#b3a37e; font-size:11px; }
       .piles { display:flex; gap:10px; align-items:stretch; }
-      .deckbtn { flex:0 0 104px; background:#152744; color:#F5EBDC; border:2px solid #2a3f66; border-radius:10px; font-family:'Archivo Black','Arial Black',sans-serif;
-        font-size:13px; cursor:pointer; padding:10px 6px; line-height:1.35; box-shadow:0 3px 0 #0c1830; }
-      .deckbtn:disabled { opacity:.4; cursor:default; }
-      .deckbtn small { display:block; font-family:'Barlow Condensed',sans-serif; font-weight:500; font-size:12px; opacity:.8; margin-top:4px; }
+      .deckbtn { position:relative; flex:0 0 106px; min-height:136px; margin:2px 12px 16px 0; color:#F5EBDC; border:2px solid #33507e; border-radius:12px;
+        font-family:'Archivo Black','Arial Black',sans-serif; font-size:13px; cursor:pointer; padding:12px 8px; line-height:1.2;
+        display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px;
+        background:
+          repeating-linear-gradient(45deg, rgba(240,180,41,.14) 0 5px, transparent 5px 10px),
+          repeating-linear-gradient(-45deg, rgba(240,180,41,.14) 0 5px, transparent 5px 10px),
+          linear-gradient(155deg, #26426f, #101f38);
+        box-shadow:
+          inset 0 0 0 4px #101f38, inset 0 0 0 5px rgba(240,180,41,.32),
+          4px 5px 0 0 #16294a, 4px 5px 0 2px #33507e,
+          9px 11px 0 0 #101f38, 9px 11px 0 2px #33507e;
+        transition:transform .12s; }
+      .deckbtn:not(:disabled):hover { transform:translateY(-3px); }
+      .deckbtn:not(:disabled):active { transform:translateY(0); }
+      .deckbtn:disabled { opacity:.45; cursor:default; }
+      .deckbtn-emblem { font-size:26px; line-height:1; filter:drop-shadow(0 1px 1px rgba(0,0,0,.55)); }
+      .deckbtn-title { font-size:13px; letter-spacing:.5px; }
+      .deckbtn-count { font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:12px; background:#F0B429; color:#152744; border-radius:999px; padding:1px 10px; box-shadow:0 1px 2px rgba(0,0,0,.4); }
+      .deckbtn small { font-family:'Barlow Condensed',sans-serif; font-weight:500; font-size:11px; opacity:.75; text-align:center; }
       .fa-row { display:flex; gap:6px; overflow-x:auto; flex:1; padding:10px 2px 4px; }
       .phase { margin-top:10px; background:#E4762B; color:#fff; border-radius:10px; padding:8px 12px; font-weight:700; font-size:15px; text-align:center; box-shadow:0 3px 0 #b3541a; line-height:1.3; }
       .phase.warn { background:#C0392B; box-shadow:0 3px 0 #8f2a1f; }
@@ -1488,7 +1503,12 @@ export default function App() {
             ? <div className="hint">Vleci <b>🂠 na slepo</b> (polna cena) <b>ALI</b> vzemi znano karto iz <b>AI-jevega odpada s popustom −25 % na plačo</b>.</div>
             : <div className="hint" style={{ opacity: .7 }}>{actPhase ? "Karto si vzel — spodaj podpiši/odvrzi." : "Ni tvoja poteza."}</div>}
           <div className="piles">
-            <button className="deckbtn" disabled={!drawPhase} onClick={drawDeck}>🂠 SKRITI KUP<small>{g.deck.length} kart · na slepo · polna cena</small></button>
+            <button className="deckbtn" disabled={!drawPhase} onClick={drawDeck}>
+              <span className="deckbtn-emblem">🏀</span>
+              <span className="deckbtn-title">SKRITI KUP</span>
+              <span className="deckbtn-count">{g.deck.length} kart</span>
+              <small>na slepo · polna cena</small>
+            </button>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div className="hint" style={{ margin: 0 }}>🟢 <b>AI-jev odpad</b> ({g.aDisc.length}) — tapni katerokoli, podpišeš s <b>popustom −25 %</b>. 🔨 (OVR {AUCTION_OVR}+) sproži dražbo.</div>
               <div className="fa-row">
