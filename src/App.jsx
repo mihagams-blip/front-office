@@ -142,6 +142,9 @@ const AGES = {
   "Nikola Jokić":30,"Victor Wembanyama":22,"Joel Embiid":31,"Chet Holmgren":23,"Karl-Anthony Towns":30,"Alperen Şengün":23,"Bam Adebayo":28,"Domantas Sabonis":29,"Ivica Zubac":28,"Jarrett Allen":27,"Rudy Gobert":33,"Isaiah Hartenstein":27,"Walker Kessler":24,"Nic Claxton":26,"Dereck Lively II":21,"Daniel Gafford":27,"Onyeka Okongwu":25,"Kel'el Ware":21,"Zach Edey":23,"Mitchell Robinson":27,"Donovan Clingan":21,"Brook Lopez":37,"Luke Kornet":30,"Al Horford":39,
 };
 const PLAYERS = RAW.map((r, i) => ({ id: i, n: r[0], club: r[1], pos: r[2], sal: r[3], ovr: r[4], pm: r[5], tr: r[6], age: AGES[r[0]] ?? 26 }));
+// uradni NBA ID-ji za portrete (cdn.nba.com); rookie prospekti jih nimajo → obdržijo ikone
+const NBA_ID = {"Shai Gilgeous-Alexander":1628983,"Luka Dončić":1629029,"Jalen Brunson":1628973,"Tyrese Haliburton":1630169,"Cade Cunningham":1630595,"De'Aaron Fox":1628368,"Jamal Murray":1627750,"Ja Morant":1629630,"Trae Young":1629027,"Immanuel Quickley":1630193,"Coby White":1629632,"Payton Pritchard":1630202,"Andrew Nembhard":1629614,"Scoot Henderson":1630703,"Keyonte George":1641718,"T.J. McConnell":204456,"Dennis Schröder":203471,"Ajay Mitchell":1642349,"Tyus Jones":1626145,"Jose Alvarado":1630631,"Reed Sheppard":1642263,"Tre Jones":1630200,"Isaiah Collier":1642268,"Anthony Edwards":1630162,"Donovan Mitchell":1628378,"Devin Booker":1626164,"Jaylen Brown":1627759,"Tyrese Maxey":1630178,"Jalen Williams":1631114,"Amen Thompson":1641708,"Derrick White":1628401,"Austin Reaves":1630559,"Zach LaVine":203897,"Josh Giddey":1630581,"Christian Braun":1631128,"Norman Powell":1626181,"Cam Thomas":1630560,"Malik Monk":1628370,"Quentin Grimes":1629656,"Anfernee Simons":1629014,"Klay Thompson":202691,"Isaiah Joe":1630198,"Max Christie":1631108,"Buddy Hield":1627741,"Gradey Dick":1641711,"Jayson Tatum":1628369,"Kevin Durant":201142,"LeBron James":2544,"Kawhi Leonard":202695,"Jimmy Butler":202710,"Paolo Banchero":1631094,"Franz Wagner":1630532,"OG Anunoby":1628384,"Deni Avdija":1630166,"Mikal Bridges":1628969,"Trey Murphy III":1630530,"Brandon Miller":1641706,"Jaden McDaniels":1630183,"Herbert Jones":1630529,"Josh Hart":1628404,"Andrew Wiggins":203952,"Aaron Nesmith":1630174,"Keegan Murray":1631099,"Matas Buzelis":1641824,"Rui Hachimura":1629060,"Jaylen Wells":1642377,"Dorian Finney-Smith":1627827,"Ziaire Williams":1630533,"Giannis Antetokounmpo":203507,"Evan Mobley":1630596,"Pascal Siakam":1627783,"Jaren Jackson Jr.":1628991,"Jalen Johnson":1630552,"Zion Williamson":1629627,"Scottie Barnes":1630567,"Lauri Markkanen":1628374,"Julius Randle":203944,"Aaron Gordon":203932,"Naz Reid":1629675,"P.J. Washington":1629023,"Jabari Smith Jr.":1631095,"Draymond Green":203110,"Toumani Camara":1641739,"Obi Toppin":1630167,"Jeremy Sochan":1631110,"Santi Aldama":1630583,"Bobby Portis":1626171,"GG Jackson":1641713,"Guerschon Yabusele":1627824,"Naji Marshall":1630230,"Kyle Kuzma":1628398,"Nikola Jokić":203999,"Victor Wembanyama":1641705,"Joel Embiid":203954,"Chet Holmgren":1631096,"Karl-Anthony Towns":1626157,"Alperen Şengün":1630578,"Bam Adebayo":1628389,"Domantas Sabonis":1627734,"Ivica Zubac":1627826,"Jarrett Allen":1628386,"Rudy Gobert":203497,"Isaiah Hartenstein":1628392,"Walker Kessler":1631117,"Nic Claxton":1629651,"Dereck Lively II":1641726,"Daniel Gafford":1629655,"Onyeka Okongwu":1630168,"Kel'el Ware":1642276,"Zach Edey":1641744,"Mitchell Robinson":1629011,"Donovan Clingan":1642270,"Brook Lopez":201572,"Luke Kornet":1628436,"Al Horford":201143,"Malik Beasley":1627736};
+const faceUrl = (c) => NBA_ID[c.n] ? `https://cdn.nba.com/headshots/nba/latest/260x190/${NBA_ID[c.n]}.png` : null;
 const ROOK_TIER = {
   safe: { ico: "🔒", n: "Varen", col: "#2f8f4e" },
   proj: { ico: "🌱", n: "Projekt", col: "#a8781a" },
@@ -459,13 +462,15 @@ function Gavel({ s = 18, style }) {
   );
 }
 
-function PlayerCard({ c, onClick, selected, mini, starter, dim, ribbon, injured }) {
+function PlayerCard({ c, onClick, selected, mini, starter, dim, ribbon, injured, onStar }) {
   if (mini) {
     return (
       <button className={"mini" + (starter ? " starter" : "") + (selected ? " msel" : "") + (injured ? " inj" : "")} style={{ borderTopColor: injured ? "#C0392B" : POS_COLOR[c.pos] }} onClick={onClick}>
+        {onStar && !starter && !injured && <span className="mini-star" role="button" title="Premakni v prvo peterko" onClick={(e) => { e.stopPropagation(); onStar(); }}>★</span>}
         <div className="mini-top"><PosBadge p={c.pos} sm /><span>{injured ? "🩹" : c.rookie ? ROOK_TIER[c.tier].ico : TRAITS[c.tr].ico}</span><b>{c.ovr}</b></div>
-        <div className="mini-name">{injured ? "🩹 " : starter ? "★ " : ""}{c.unhappy ? "😤" : ""}{surname(c.n)}</div>
-        <div className="mini-sal">{injured ? "poškodovan" : `${starter ? `${spts(c)} tč · ` : ""}${c.sal} M$${c.contract != null ? ` · 📄${c.contract}` : ""}`}</div>
+        <div className="mini-name">{injured ? "🩹 " : starter ? "★ " : ""}{c.unhappy ? "😤" : ""}{faceUrl(c) && <img className="mini-face" src={faceUrl(c)} alt="" loading="lazy" draggable={false} onError={(e) => { e.currentTarget.style.display = "none"; }} />}{surname(c.n)}</div>
+        <div className="mini-sal">{c.age} let · {c.sal} M${c.contract != null ? ` · 📄${c.contract}` : ""}</div>
+        <div className="mini-pts">{injured ? "poškodovan" : starter ? `★ ${spts(c)} tč v peterki` : `klop ${Math.floor(c.ovr / 2)} tč`}</div>
       </button>
     );
   }
@@ -473,6 +478,7 @@ function PlayerCard({ c, onClick, selected, mini, starter, dim, ribbon, injured 
     <button className={"card" + (selected ? " sel" : "") + (dim ? " dim" : "")} onClick={onClick} style={{ borderTopColor: POS_COLOR[c.pos] }}>
       {ribbon && <div className="ribbon">{ribbon}</div>}
       <div className="card-row"><PosBadge p={c.pos} /><span className="ovr">{c.ovr >= AUCTION_OVR ? <Gavel s={16} /> : null}{c.ovr}</span></div>
+      {faceUrl(c) && <img className="face" src={faceUrl(c)} alt="" loading="lazy" draggable={false} onError={(e) => { e.currentTarget.style.display = "none"; }} />}
       <div className="card-name">{c.unhappy ? "😤 " : ""}{c.n}</div>
       <div className="card-club">{c.club} · {c.age} let{c.rookie ? " · ROOKIE" : ""}{c.contract != null ? ` · 📄 ${c.contract} ${c.contract === 1 ? "sezona" : "sez."}` : ""}</div>
       <div className="trait">{TRAITS[c.tr].ico} {TRAITS[c.tr].n}</div>
@@ -1118,9 +1124,11 @@ export default function App() {
       .card-row.btm { margin-top:4px; }
       .ovr { font-family:'Archivo Black','Arial Black',sans-serif; font-size:18px; color:#152744; }
       .card-name { font-weight:700; font-size:14px; line-height:1.1; margin-top:4px; min-height:30px; }
-      .card-club { font-size:11px; color:#8a7c63; }
-      .trait { font-size:11px; font-weight:700; color:#4a4232; background:#f2e9d4; border-radius:5px; padding:1px 5px; margin-top:3px; display:inline-block; }
-      .vals { font-size:10.5px; color:#215c26; background:#e7f3e7; border-radius:5px; padding:1px 5px; margin-top:3px; font-weight:700; }
+      .face { display:block; width:54px; height:54px; border-radius:50%; object-fit:cover; object-position:center top; margin:5px auto 0; background:#eee6d2; border:2px solid #e0d5bc; }
+      .mini-face { width:16px; height:16px; border-radius:50%; object-fit:cover; object-position:center top; vertical-align:-3px; margin-right:3px; background:#eee6d2; display:inline-block; }
+      .card-club { font-size:12px; color:#8a7c63; }
+      .trait { font-size:12px; font-weight:700; color:#4a4232; background:#f2e9d4; border-radius:5px; padding:1px 5px; margin-top:3px; display:inline-block; }
+      .vals { font-size:11.5px; color:#215c26; background:#e7f3e7; border-radius:5px; padding:1px 5px; margin-top:3px; font-weight:700; }
       .sal { font-weight:700; color:#8a6d1a; font-size:13px; }
       .oldsal { text-decoration:line-through; color:#b3a37e; font-weight:600; font-size:11px; }
       .pot { font-size:11px; font-weight:700; margin-top:2px; }
@@ -1137,15 +1145,20 @@ export default function App() {
       .addstand { font-size:12px; color:#5a6b85; margin-top:2px; }
       .pm { font-weight:700; font-size:13px; } .pm.pos{color:#2E7D32;} .pm.neg{color:#C0392B;}
       .hand { display:flex; gap:8px; overflow-x:auto; padding:8px 2px 10px; }
-      .mini { width:72px; background:#fff; border:1px solid #d8cdb8; border-top:4px solid; border-radius:8px; padding:4px 5px; font-size:11px; text-align:left; cursor:pointer; font-family:inherit; }
+      .mini { position:relative; width:102px; background:#fff; border:1px solid #d8cdb8; border-top:4px solid; border-radius:8px; padding:6px 7px; font-size:12px; text-align:left; cursor:pointer; font-family:inherit; }
       .mini.starter { box-shadow:0 0 0 2.5px #F0B429; background:#fffaea; }
       .mini.msel { outline:3px solid #E4762B; }
       .mini-top { display:flex; justify-content:space-between; align-items:center; }
-      .mini-name { font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-      .mini-sal { color:#8a6d1a; font-size:10px; }
+      .mini-top b { font-size:16px; }
+      .mini-name { font-weight:700; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-top:2px; }
+      .mini-sal { color:#8a6d1a; font-size:11px; margin-top:1px; }
+      .mini-pts { font-size:11px; font-weight:700; color:#4a4232; }
+      .mini.starter .mini-pts { color:#8a6d1a; }
+      .mini-star { position:absolute; top:-8px; right:-8px; width:24px; height:24px; border-radius:50%; background:#F0B429; color:#152744; display:flex; align-items:center; justify-content:center; font-size:14px; box-shadow:0 1px 3px rgba(0,0,0,.35); cursor:pointer; z-index:2; }
+      .mini-star:hover { background:#E4762B; color:#fff; }
       .roster-grid { display:flex; flex-wrap:wrap; gap:6px; }
-      .slot-empty { width:72px; height:60px; border:2px dashed #c9b892; border-radius:8px; display:flex; align-items:center; justify-content:center; color:#b3a37e; font-size:11px; }
-      .slot-empty.need { flex-direction:column; gap:3px; font-weight:700; font-size:10px; background:rgba(255,255,255,.35); }
+      .slot-empty { width:102px; height:92px; border:2px dashed #c9b892; border-radius:8px; display:flex; align-items:center; justify-content:center; color:#b3a37e; font-size:12px; }
+      .slot-empty.need { flex-direction:column; gap:3px; font-weight:700; font-size:11px; background:rgba(255,255,255,.35); }
       .piles { display:flex; gap:10px; align-items:stretch; }
       .deckbtn { position:relative; flex:0 0 106px; min-height:136px; margin:2px 12px 16px 0; color:#F5EBDC; border:2px solid #33507e; border-radius:12px;
         font-family:'Archivo Black','Arial Black',sans-serif; font-size:13px; cursor:pointer; padding:12px 8px; line-height:1.2;
@@ -1199,14 +1212,14 @@ export default function App() {
       .capm-fill { height:100%; transition:width .3s; }
       .capm-cap { position:absolute; top:-2px; bottom:-2px; width:3px; background:#152744; }
       .capm-cap.apron { background:#8f1d12; }
-      .capm-zones { display:flex; justify-content:space-between; font-size:10px; color:#8a7c63; margin-top:2px; }
+      .capm-zones { display:flex; justify-content:space-between; font-size:11px; color:#8a7c63; margin-top:2px; }
       .red { color:#C0392B; } .green { color:#2E7D32; }
       .chips { display:flex; flex-wrap:wrap; gap:5px; margin-top:8px; }
       .chip { background:#e7f3e7; color:#215c26; border-radius:12px; padding:3px 10px; font-size:12px; font-weight:700; border:1px solid #c7e0c7; cursor:pointer; font-family:inherit; transition:transform .1s, box-shadow .1s; }
       .chip:hover, .chip:focus-visible { transform:translateY(-1px); box-shadow:0 2px 6px rgba(20,25,40,.2); outline:none; }
       .chip:active { transform:translateY(0); }
       .chip.neg { background:#fbe3e0; color:#8f2a1f; border-color:#eab3ac; }
-      .chips-hint { font-size:11px; color:#8a7c63; margin-top:8px; font-weight:600; }
+      .chips-hint { font-size:12px; color:#8a7c63; margin-top:8px; font-weight:600; }
       .chips-hint + .chips { margin-top:4px; }
       .chips-empty { font-size:12px; color:#8a7c63; margin-top:8px; }
       .unlocks { margin-top:8px; background:#0e1c33; border-radius:10px; padding:8px 10px; }
@@ -1232,7 +1245,7 @@ export default function App() {
       .stbtn:disabled { opacity:.3; }
       .bidsum { text-align:center; font-family:'Archivo Black','Arial Black',sans-serif; font-size:18px; color:#152744; margin-top:10px; }
       .auc-card { display:flex; justify-content:center; margin:8px 0; }
-      .tr-col { max-height:150px; overflow-y:auto; display:flex; flex-wrap:wrap; gap:6px; padding:4px; background:#f7f1e2; border-radius:10px; }
+      .tr-col { max-height:230px; overflow-y:auto; display:flex; flex-wrap:wrap; gap:6px; padding:4px; background:#f7f1e2; border-radius:10px; }
       .bd { background:#fffdf7; border-radius:12px; padding:12px; flex:1; min-width:230px; }
       .bd-title { font-family:'Archivo Black','Arial Black',sans-serif; color:#152744; margin-bottom:8px; font-size:15px; }
       .bd-five { display:flex; flex-direction:column; gap:3px; margin-bottom:8px; font-size:13px; }
@@ -1280,14 +1293,18 @@ export default function App() {
       /* ===== NAMIZNI (desktop) VIDEZ: širši prostor + večje kartice (velja od 700px navzgor) ===== */
       @media (min-width: 700px) {
         .wrap { max-width: 960px; padding: 16px 18px 108px; }
-        .mini { width: 116px; font-size: 13px; padding: 6px 8px; }
+        .mini { width: 128px; font-size: 13px; padding: 7px 9px; }
         .mini-top { font-size: 13px; }
+        .mini-top b { font-size: 17px; }
         .mini-name { font-size: 15px; }
         .mini-sal { font-size: 12px; }
+        .mini-pts { font-size: 12px; }
         .roster-grid { gap: 10px; }
-        .slot-empty { width: 116px; height: 90px; font-size: 13px; }
+        .slot-empty { width: 128px; height: 102px; font-size: 13px; }
         .card { width: 138px; min-width: 138px; padding: 9px 11px; }
         .card-name { font-size: 15px; min-height: 34px; }
+        .face { width: 64px; height: 64px; }
+        .mini-face { width: 18px; height: 18px; }
         .card-club { font-size: 12px; }
         .trait, .vals { font-size: 12px; }
         .hand { gap: 10px; }
@@ -1627,17 +1644,27 @@ export default function App() {
           </div>
           {g.h.deadCap > 0 && <div className="hint red">✂️ Dead cap: +{g.h.deadCap} M$ v plačni masi do konca runde (odpuščeni igralci).</div>}
           <CapMeter salary={myEff + (g.h.deadCap || 0)} />
-          <div className="roster-grid" style={{ marginTop: 8 }}>
-            {g.h.roster.map((c) => (
-              <PlayerCard key={c.id} c={c} mini starter={g.h.starters[c.pos] === c.id && g.injured.h !== c.id} injured={g.injured.h === c.id} onClick={() => { if (waiveMode) { setWaiveTarget(c); return; } setInspect({ card: c, side: "h" }); }} />
-            ))}
-            {(() => {
-              const missing = POS.filter((p) => !g.h.roster.some((c) => c.pos === p));
-              return Array.from({ length: 10 - g.h.roster.length }).map((_, i) => missing[i]
-                ? <div key={i} className="slot-empty need" style={{ borderColor: POS_COLOR[missing[i]], color: POS_COLOR[missing[i]] }}><PosBadge p={missing[i]} sm /><span>manjka</span></div>
-                : <div key={i} className="slot-empty">prosto</div>);
-            })()}
-          </div>
+          {(() => {
+            const starterIds = new Set(POS.map((p) => g.h.starters[p]).filter((id) => id != null));
+            const bench = g.h.roster.filter((c) => !starterIds.has(c.id));
+            const tapCard = (c) => { if (waiveMode) { setWaiveTarget(c); return; } setInspect({ card: c, side: "h" }); };
+            return <>
+              <div className="lbl" style={{ margin: "10px 0 4px" }}>★ Prva peterka</div>
+              <div className="roster-grid">
+                {POS.map((p) => {
+                  const st = g.h.roster.find((c) => c.id === g.h.starters[p]);
+                  return st
+                    ? <PlayerCard key={p} c={st} mini starter={g.injured.h !== st.id} injured={g.injured.h === st.id} onClick={() => tapCard(st)} />
+                    : <div key={p} className="slot-empty need" style={{ borderColor: POS_COLOR[p], color: POS_COLOR[p] }}><PosBadge p={p} sm /><span>manjka</span></div>;
+                })}
+              </div>
+              <div className="lbl" style={{ margin: "10px 0 4px" }}>Klop <span style={{ fontWeight: 500, textTransform: "none", letterSpacing: 0 }}>· tapni ★ za premik v peterko</span></div>
+              <div className="roster-grid">
+                {bench.map((c) => <PlayerCard key={c.id} c={c} mini injured={g.injured.h === c.id} onStar={() => setStarter(c)} onClick={() => tapCard(c)} />)}
+                {Array.from({ length: Math.max(0, 5 - bench.length) }).map((_, i) => <div key={i} className="slot-empty">prosto</div>)}
+              </div>
+            </>;
+          })()}
           <BonusChips r={proj} coach={g.h.coach} onExplain={say} />
         </div>
 
