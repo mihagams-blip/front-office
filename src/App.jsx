@@ -472,6 +472,13 @@ function Ico({ k, s = 14, style }) {
     case "proj": return (<svg {...c}><path d="M12 21.4 V12.6" stroke={NV} strokeWidth="1.9" strokeLinecap="round" /><path d="M12 13.4 C12 8.8 8.8 6.4 4.4 6.4 c0 4.6 3.2 7 7.6 7z" fill="#2E7D32" stroke={NV} strokeWidth="1.4" strokeLinejoin="round" /><path d="M12 13.4 c0-4.6 3.2-7 7.6-7 0 4.6-3.2 7-7.6 7z" fill="#6FBF73" stroke={NV} strokeWidth="1.4" strokeLinejoin="round" /></svg>);
     case "safe": return (<svg {...c}><circle cx="12" cy="12" r="9.5" fill="#2E7D32" stroke={NV} strokeWidth="1.8" /><path d="M7.4 12.5 l3.1 3.1 6.1-6.6" fill="none" stroke="#F5EBDC" strokeWidth="2.7" strokeLinecap="round" strokeLinejoin="round" /></svg>);
     case "inj": return (<svg {...c}><g transform="rotate(-28 12 12)"><rect x="2.6" y="8.6" width="18.8" height="6.8" rx="3.4" fill="#E8C89A" stroke={NV} strokeWidth="1.6" /><rect x="9" y="9.6" width="6" height="4.8" rx="1" fill="#F5EBDC" stroke={NV} strokeWidth="1" /><circle cx="5.9" cy="12" r=".8" fill={NV} /><circle cx="18.1" cy="12" r=".8" fill={NV} /></g></svg>);
+    /* gumbi na temnem ozadju → svetle barve */
+    case "trade": return (<svg {...c}><path d="M4 9.2 H16" fill="none" stroke="#E4762B" strokeWidth="2.1" strokeLinecap="round" /><path d="M13.3 6.2 16.9 9.2 13.3 12.2" fill="none" stroke="#E4762B" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" /><path d="M20 14.8 H8" fill="none" stroke="#F5EBDC" strokeWidth="2.1" strokeLinecap="round" /><path d="M10.7 11.8 7.1 14.8 10.7 17.8" fill="none" stroke="#F5EBDC" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" /></svg>);
+    case "waive": return (<svg {...c}><circle cx="6.6" cy="7.2" r="2.5" fill="none" stroke="#F5EBDC" strokeWidth="1.7" /><circle cx="6.6" cy="16.8" r="2.5" fill="none" stroke="#F5EBDC" strokeWidth="1.7" /><path d="M8.8 8.6 L20 15.6" fill="none" stroke="#F5EBDC" strokeWidth="1.9" strokeLinecap="round" /><path d="M8.8 15.4 L20 8.4" fill="none" stroke="#F5EBDC" strokeWidth="1.9" strokeLinecap="round" /><circle cx="12.2" cy="12" r="1.3" fill="#FF6B5E" /></svg>);
+    case "draft": return (<svg {...c}><path d="M3.6 6.6 H20.4 V9.6 a2.2 2.2 0 0 0 0 4.8 V17.4 H3.6 V14.4 a2.2 2.2 0 0 0 0-4.8 Z" fill="#F0B429" stroke="#F5EBDC" strokeWidth="1.2" strokeLinejoin="round" /><path d="M14.4 6.6 V17.4" stroke={NV} strokeWidth="1.1" strokeDasharray="1.5 1.6" /><path d="M8.7 8.9 l.95 1.95 2.15.3 -1.55 1.5 .37 2.15 -1.92-1.02 -1.92 1.02 .37-2.15 -1.55-1.5 2.15-.3z" fill={NV} /></svg>);
+    case "cap": return (<svg {...c}><path d="M5 14.6 C5 9 8.2 5.6 12 5.6 C15.8 5.6 19 9 19 14.6 Z" fill="#2E4A78" stroke={NV} strokeWidth="1.5" strokeLinejoin="round" /><path d="M18.3 14.6 C20.9 14.6 22.2 15.8 22.2 17.1 L5 17.1 L5 14.6 Z" fill="#E4762B" stroke={NV} strokeWidth="1.5" strokeLinejoin="round" /><circle cx="12" cy="5.9" r="1.05" fill={NV} /></svg>);
+    case "contract": return (<svg {...c}><path d="M6 3.4 H14.4 L18.4 7.4 V20.6 H6 Z" fill="#F5EBDC" stroke={NV} strokeWidth="1.5" strokeLinejoin="round" /><path d="M14.2 3.6 V7.6 H18.2" fill="none" stroke={NV} strokeWidth="1.3" strokeLinejoin="round" /><path d="M8.4 11.2 H15.4 M8.4 14 H15.4 M8.4 16.8 H12.8" stroke={NV} strokeWidth="1.2" strokeLinecap="round" /></svg>);
+    case "sulk": return (<svg {...c}><circle cx="12" cy="12.6" r="8.6" fill="#FF6B5E" stroke={NV} strokeWidth="1.5" /><path d="M7.8 10.6 L10.6 11.9 M16.2 10.6 L13.4 11.9" stroke={NV} strokeWidth="1.4" strokeLinecap="round" /><circle cx="9.5" cy="13" r="1" fill={NV} /><circle cx="14.5" cy="13" r="1" fill={NV} /><path d="M9.5 17 C10.6 15.9 13.4 15.9 14.5 17" fill="none" stroke={NV} strokeWidth="1.4" strokeLinecap="round" /></svg>);
     default: return null;
   }
 }
@@ -495,11 +502,11 @@ function PlayerCard({ c, onClick, selected, mini, starter, dim, ribbon, injured,
   if (mini) {
     return (
       <button className={"mini" + (starter ? " starter" : "") + (selected ? " msel" : "") + (injured ? " inj" : "")} style={{ borderTopColor: injured ? "#C0392B" : POS_COLOR[c.pos] }} onClick={onClick}>
-        {onStar && !starter && !injured && <span className="mini-star" role="button" title="Premakni v prvo peterko" onClick={(e) => { e.stopPropagation(); onStar(); }}>★</span>}
         <div className="mini-top"><PosBadge p={c.pos} sm /><span>{injured ? <Ico k="inj" s={14} /> : c.rookie ? <Ico k={c.tier} s={14} /> : <Ico k={c.tr} s={14} />}</span><b>{c.ovr}</b></div>
-        <div className="mini-name">{injured ? "🩹 " : starter ? "★ " : ""}{c.unhappy ? "😤" : ""}{faceUrl(c) && <img className="mini-face" src={faceUrl(c)} alt="" loading="lazy" draggable={false} onError={(e) => { e.currentTarget.style.display = "none"; }} />}{surname(c.n)}</div>
-        <div className="mini-sal">{c.age} let · {c.sal} M${c.contract != null ? ` · 📄${c.contract}` : ""}</div>
+        <div className="mini-name">{injured ? "🩹 " : starter ? "★ " : ""}{c.unhappy && <Ico k="sulk" s={13} style={{ verticalAlign: "-2px", marginRight: 1 }} />}{faceUrl(c) && <img className="mini-face" src={faceUrl(c)} alt="" loading="lazy" draggable={false} onError={(e) => { e.currentTarget.style.display = "none"; }} />}{surname(c.n)}</div>
+        <div className="mini-sal">{c.age} let · {c.sal} M${c.contract != null && <> · <Ico k="contract" s={11} style={{ verticalAlign: "-1px" }} />{c.contract}</>}</div>
         <div className="mini-pts">{injured ? "poškodovan" : starter ? `★ ${spts(c)} tč v peterki` : `klop ${Math.floor(c.ovr / 2)} tč`}</div>
+        {onStar && !starter && !injured && <span className="mini-promote" role="button" title="Premakni v prvo peterko" onClick={(e) => { e.stopPropagation(); onStar(); }}>↑ v peterko</span>}
       </button>
     );
   }
@@ -508,8 +515,8 @@ function PlayerCard({ c, onClick, selected, mini, starter, dim, ribbon, injured,
       {ribbon && <div className="ribbon">{ribbon}</div>}
       <div className="card-row"><PosBadge p={c.pos} /><span className="ovr">{c.ovr >= AUCTION_OVR ? <Gavel s={16} /> : null}{c.ovr}</span></div>
       {faceUrl(c) && <img className="face" src={faceUrl(c)} alt="" loading="lazy" draggable={false} onError={(e) => { e.currentTarget.style.display = "none"; }} />}
-      <div className="card-name">{c.unhappy ? "😤 " : ""}{c.n}</div>
-      <div className="card-club">{c.club} · {c.age} let{c.rookie ? " · ROOKIE" : ""}{c.contract != null ? ` · 📄 ${c.contract} ${c.contract === 1 ? "sezona" : "sez."}` : ""}</div>
+      <div className="card-name">{c.unhappy && <><Ico k="sulk" s={14} /> </>}{c.n}</div>
+      <div className="card-club">{c.club} · {c.age} let{c.rookie ? " · ROOKIE" : ""}{c.contract != null && <> · <Ico k="contract" s={12} style={{ verticalAlign: "-1px" }} />{c.contract} {c.contract === 1 ? "sezona" : "sez."}</>}</div>
       <div className="trait"><Ico k={c.tr} s={13} /> {TRAITS[c.tr].n}</div>
       {c.rookie
         ? <><div className="pot" style={{ color: ROOK_TIER[c.tier].col }}><Ico k={c.tier} s={13} /> {ROOK_TIER[c.tier].n} · potencial {c.potLow}–{c.potHigh}</div><div className="pot-job">{ROOK_TIER[c.tier].job}</div></>
@@ -639,7 +646,7 @@ function Breakdown({ name, r }) {
   return (
     <div className="bd">
       <div className="bd-title">{name}</div>
-      {r.coach && <div style={{ fontSize: 12, color: "#7a6a4f", marginBottom: 6 }}>🧢 {coachOf(r.coach).n} — {coachOf(r.coach).t}</div>}
+      {r.coach && <div style={{ fontSize: 12, color: "#7a6a4f", marginBottom: 6 }}><Ico k="cap" s={13} /> {coachOf(r.coach).n} — {coachOf(r.coach).t}</div>}
       <div className="bd-five">
         {POS.map((p) => (
           <div key={p} className="bd-slot">
@@ -1213,13 +1220,24 @@ export default function App() {
       .mini-sal { color:#8a6d1a; font-size:11px; margin-top:1px; }
       .mini-pts { font-size:11px; font-weight:700; color:#4a4232; }
       .mini.starter .mini-pts { color:#8a6d1a; }
-      .mini-star { position:absolute; top:-8px; right:-8px; width:24px; height:24px; border-radius:50%; background:#F0B429; color:#152744; display:flex; align-items:center; justify-content:center; font-size:14px; box-shadow:0 1px 3px rgba(0,0,0,.35); cursor:pointer; z-index:2; }
-      .mini-star:hover { background:#E4762B; color:#fff; }
+      .mini-promote { display:block; margin-top:5px; padding-top:4px; border-top:1px dashed #d8cdb8; font-size:10.5px; font-weight:700; letter-spacing:.3px; color:#8a7c63; text-align:center; cursor:pointer; }
+      .mini-promote:hover, .mini-promote:focus-visible { color:#E4762B; }
       .roster-grid { display:flex; flex-wrap:wrap; gap:6px; }
       .slot-empty { width:102px; height:92px; border:2px dashed #c9b892; border-radius:8px; display:flex; align-items:center; justify-content:center; color:#b3a37e; font-size:12px; }
       .slot-empty.need { flex-direction:column; gap:3px; font-weight:700; font-size:11px; background:rgba(255,255,255,.35); }
-      .piles { display:flex; gap:10px; align-items:stretch; }
-      .deckbtn { position:relative; flex:0 0 106px; min-height:136px; margin:2px 12px 16px 0; color:#F5EBDC; border:2px solid #33507e; border-radius:12px;
+      .piles { display:flex; gap:12px; align-items:flex-start; }
+      .market-zone { flex:1; min-width:0; }
+      .pile-cap { font-size:12px; font-weight:700; color:#7a6a4f; text-transform:uppercase; letter-spacing:.6px; margin:0 0 3px 2px; display:flex; align-items:center; gap:6px; }
+      .pile-n { background:#f2e9d4; color:#4a4232; border-radius:999px; padding:1px 8px; font-size:11px; }
+      .pile-sub { text-transform:none; letter-spacing:0; font-weight:500; color:#8a7c63; font-size:11px; }
+      .pile-empty { font-size:13px; color:#8a7c63; align-self:center; }
+      .lbl-sub { text-transform:none; letter-spacing:0; font-weight:500; color:#8a7c63; font-size:12px; }
+      .coach-chip { display:inline-flex; align-items:center; gap:6px; background:#f2e9d4; border:1px solid #e0d5bc; border-radius:999px; padding:3px 12px; font-family:inherit; font-size:13px; color:#4a4232; cursor:pointer; margin-bottom:8px; }
+      .coach-chip b { color:#152744; }
+      .coach-chip:hover, .coach-chip:focus-visible { border-color:#E4762B; }
+      .ico-btn { display:inline-flex; align-items:center; justify-content:center; gap:6px; line-height:1.2; }
+      .opt-sub { opacity:.72; font-weight:500; }
+      .deckbtn { position:relative; flex:0 0 112px; min-height:214px; margin:10px 12px 16px 0; color:#F5EBDC; border:2px solid #33507e; border-radius:12px;
         font-family:'Archivo Black','Arial Black',sans-serif; font-size:13px; cursor:pointer; padding:12px 8px; line-height:1.2;
         display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px;
         background:
@@ -1377,7 +1395,7 @@ export default function App() {
         .card-club { font-size: 12px; }
         .trait, .vals { font-size: 12px; }
         .hand { gap: 10px; }
-        .deckbtn { flex-basis: 124px; min-height: 156px; }
+        .deckbtn { flex-basis: 138px; min-height: 226px; }
         .deckbtn-emblem { font-size: 30px; }
         .actions .abtn { max-width: 230px; padding: 14px 12px; font-size: 15px; }
       }
@@ -1581,7 +1599,7 @@ export default function App() {
           {offInfo && (
             <div className="modal-bg" onClick={() => setOffInfo(null)}>
               <div className="modal" onClick={(e) => e.stopPropagation()}>
-                <h3>{offInfo.unhappy ? "😤 " : ""}{offInfo.n}</h3>
+                <h3>{offInfo.unhappy && <><Ico k="sulk" s={18} /> </>}{offInfo.n}</h3>
                 <div className="auc-card"><PlayerCard c={offInfo} onClick={() => {}} /></div>
                 <ul>
                   <li><b>{offInfo.pos}</b> · {offInfo.club} · <b>{offInfo.age} let</b>{offInfo.rookie ? " · ROOKIE" : ""} · <Ico k={offInfo.tr} s={14} /> {TRAITS[offInfo.tr].n}</li>
@@ -1630,7 +1648,7 @@ export default function App() {
         {g.banner && <div className="phase warn">⚠️ {g.banner}</div>}
         {(aiThinking || g.auction || coachPending) && (
           <div className="phase">
-            {aiThinking ? "🔴 AI GM je na potezi — počakaj…" : g.auction ? <><Gavel s={17} /> DRAŽBA za superzvezdnika!</> : "🧢 Izberi coacha za to rundo"}
+            {aiThinking ? "🔴 AI GM je na potezi — počakaj…" : g.auction ? <><Gavel s={17} /> DRAŽBA za superzvezdnika!</> : <><Ico k="cap" s={16} /> Izberi coacha za to rundo</>}
           </div>
         )}
 
@@ -1640,7 +1658,7 @@ export default function App() {
         <div className="panel">
           <button className="ai-tile" onClick={() => setAiOpen(!aiOpen)}>
             <div style={{ minWidth: 0, flex: 1 }}>
-              <div className="lbl" style={{ margin: 0 }}>AI GM {g.a.coach ? `· 🧢 ${coachOf(g.a.coach).n}` : ""} · roster {g.a.roster.length}/10 · projekcija {aiProj.total}</div>
+              <div className="lbl" style={{ margin: 0 }}>AI GM {g.a.coach && <>· <Ico k="cap" s={15} /> {coachOf(g.a.coach).n} </>}· roster {g.a.roster.length}/10 · projekcija {aiProj.total}</div>
               {!aiOpen && (() => { const last = [...g.log].reverse().find((l) => l.startsWith("AI")); return last ? <div className="ai-last">{last}</div> : null; })()}
             </div>
             <span className="chev">{aiOpen ? "▲ skrij" : "▼ podrobno"}</span>
@@ -1661,36 +1679,35 @@ export default function App() {
 
         {/* KUPI */}
         <div className={"panel" + (drawPhase ? " draw-hi" : "")}>
-          <div className="lbl" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><span>Trg — vzemi 1 karto</span><button className="infob" onClick={() => setHelp("kupi")} aria-label="Pomoč: trg">?</button></div>
+          <div className="lbl" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}><span>Trg <span className="lbl-sub">— vzemi 1 karto iz kupa ali AI-jevega odpada</span></span><button className="infob" onClick={() => setHelp("kupi")} aria-label="Pomoč: trg">?</button></div>
           <div className="piles">
             <button className="deckbtn" disabled={!drawPhase} onClick={drawDeck}>
-              <span className="deckbtn-emblem"><Ico k="ball" s={30} style={{ verticalAlign: 0 }} /></span>
+              <span className="deckbtn-emblem"><Ico k="ball" s={34} style={{ verticalAlign: 0 }} /></span>
               <span className="deckbtn-title">SKRITI KUP</span>
               <span className="deckbtn-count">{g.deck.length} kart</span>
               <small>na slepo · polna cena</small>
             </button>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div className="hint" style={{ margin: 0 }}>🟢 <b>AI-jev odpad</b> ({g.aDisc.length}) · popust −25 %</div>
+            <div className="market-zone">
               <div className="fa-row">
                 {g.aDisc.slice(-8).map((c) => <PlayerCard key={c.id} c={c} dim={!drawPhase} ribbon={`−25% → ${discSal(c)}M`} onClick={() => { if (drawPhase) setInspect({ card: c, side: "market" }); }} />)}
-                {g.aDisc.length === 0 && <span style={{ fontSize: 13, color: "#8a7c63", alignSelf: "center" }}>Prazno — AI še ni ničesar odvrgel.</span>}
+                {g.aDisc.length === 0 && <span className="pile-empty">Prazno — AI še ni ničesar odvrgel.</span>}
               </div>
             </div>
           </div>
           {g.hDisc.length > 0 && (
-            <div style={{ marginTop: 8 }}>
-              <div className="hint" style={{ margin: 0 }}>🔴 <b>Tvoj odpad</b> ({g.hDisc.length}) · AI lahko pobere</div>
+            <div style={{ marginTop: 10 }}>
+              <div className="pile-cap">Tvoj odpad <span className="pile-n">{g.hDisc.length}</span> <span className="pile-sub">· AI lahko pobere</span></div>
               <div className="fa-row">
                 {g.hDisc.slice(-8).map((c) => <PlayerCard key={c.id} c={c} dim onClick={() => {}} />)}
               </div>
             </div>
           )}
-          <div className="mrow" style={{ marginTop: 8 }}>
-            <button className="optbtn" style={{ flex: 1 }} disabled={!canTrade} onClick={openTrade}>🔄 Predlagaj trejd {g.h.tradeUsed ? "(v tej potezi že)" : "(1× na potezo)"}</button>
-            <button className="optbtn" style={{ flex: 1, background: waiveMode ? "#C0392B" : "#152744" }} disabled={!myTurn || g.h.roster.length === 0} onClick={() => { setWaiveMode(!waiveMode); if (!waiveMode) say("✂️ Waive: tapni igralca v svojem rosterju, ki ga odpuščaš."); }}>✂️ {waiveMode ? "Prekliči waive" : "Waive igralca"}</button>
+          <div className="mrow" style={{ marginTop: 10 }}>
+            <button className="optbtn ico-btn" style={{ flex: 1 }} disabled={!canTrade} onClick={openTrade}><Ico k="trade" s={16} /> Trejd <span className="opt-sub">{g.h.tradeUsed ? "· že" : "· 1×/potezo"}</span></button>
+            <button className="optbtn ico-btn" style={{ flex: 1, background: waiveMode ? "#C0392B" : "#152744" }} disabled={!myTurn || g.h.roster.length === 0} onClick={() => { setWaiveMode(!waiveMode); if (!waiveMode) say("Waive: tapni igralca v svojem rosterju, ki ga odpuščaš."); }}><Ico k="waive" s={16} /> {waiveMode ? "Prekliči" : "Waive"}</button>
           </div>
           {!g.franchise && <div className="mrow" style={{ marginTop: 6 }}>
-            <button className="optbtn" style={{ flex: 1, background: "#3a2a5c" }} disabled={!myTurn || g.draftBoard.length === 0 || (g.draftUsed.h.f >= 1 && g.draftUsed.h.s >= 1)} onClick={() => setDraftOpen(true)}>🎫 Draftaj prospekta ({g.draftBoard.length}) · 1.krog {g.draftUsed.h.f}/1 · 2.krog {g.draftUsed.h.s}/1</button>
+            <button className="optbtn ico-btn" style={{ flex: 1, background: "#3a2a5c" }} disabled={!myTurn || g.draftBoard.length === 0 || (g.draftUsed.h.f >= 1 && g.draftUsed.h.s >= 1)} onClick={() => setDraftOpen(true)}><Ico k="draft" s={16} /> Draftaj prospekta ({g.draftBoard.length}) <span className="opt-sub">· {g.draftUsed.h.f}/1 · {g.draftUsed.h.s}/1</span></button>
           </div>}
         </div>
 
@@ -1704,6 +1721,7 @@ export default function App() {
               <button className="infob" onClick={() => setHelp("roster")} aria-label="Pomoč: roster">?</button>
             </div>
           </div>
+          {g.h.coach && <button className="coach-chip" onClick={() => setHelp("roster")}><Ico k="cap" s={16} /> <b>{coachOf(g.h.coach).n}</b> · {coachOf(g.h.coach).t}</button>}
           {g.h.deadCap > 0 && <div className="hint red">✂️ Dead cap: +{g.h.deadCap} M$ v plačni masi do konca runde (odpuščeni igralci).</div>}
           <CapMeter salary={myEff + (g.h.deadCap || 0)} />
           {(() => {
@@ -1720,7 +1738,7 @@ export default function App() {
                     : <div key={p} className="slot-empty need" style={{ borderColor: POS_COLOR[p], color: POS_COLOR[p] }}><PosBadge p={p} sm /><span>manjka</span></div>;
                 })}
               </div>
-              <div className="lbl" style={{ margin: "10px 0 4px" }}>Klop <span style={{ fontWeight: 500, textTransform: "none", letterSpacing: 0 }}>· tapni ★ za premik v peterko</span></div>
+              <div className="lbl" style={{ margin: "10px 0 4px" }}>Klop <span style={{ fontWeight: 500, textTransform: "none", letterSpacing: 0 }}>· tapni ↑ v peterko na kartici</span></div>
               <div className="roster-grid">
                 {bench.map((c) => <PlayerCard key={c.id} c={c} mini injured={g.injured.h === c.id} onStar={() => setStarter(c)} onClick={() => tapCard(c)} />)}
                 {Array.from({ length: Math.max(0, 5 - bench.length) }).map((_, i) => <div key={i} className="slot-empty">prosto</div>)}
@@ -1806,7 +1824,7 @@ export default function App() {
       {coachPending && !g.result && (
         <div className="modal-bg">
           <div className="modal">
-            <h3>🧢 Izberi coacha za rundo {g.round}</h3>
+            <h3><Ico k="cap" s={20} /> Izberi coacha za rundo {g.round}</h3>
             <p>Vsak coach prinese bonus, ki ga lahko izkoristiš — ali pa tudi ne. AI dobi naključnega izmed preostalih.</p>
             {COACHES.map((c) => (
               <button key={c.id} className="coachbtn" onClick={() => pickCoach(c.id)}>
