@@ -1574,7 +1574,7 @@ export default function App() {
       <div className="fo">{css}
         <div className="wrap menu">
           <h1>FRONT<br />OFFICE</h1>
-          <div className="tag">Ti proti <b>rivalski AI dinastiji</b> — kdo osvoji več naslovov?<br />Draftaj mlade, razvij jih v zvezdnike, časi svoje šampionsko okno.</div>
+          <div className="tag">Ti proti <b>rivalski AI dinastiji</b> — kdo osvoji več naslovov?<br />Draftaj mlade, razvij jih v zvezdnike, ujemi svoje šampionsko okno.</div>
           {counts && <div className="menu-count">👥 {counts.players} {counts.players === 1 ? "menedžer" : counts.players === 2 ? "menedžerja" : counts.players <= 4 ? "menedžerji" : "menedžerjev"} doslej · 🎮 {counts.games} {counts.games === 1 ? "igra" : counts.games === 2 ? "igri" : counts.games <= 4 ? "igre" : "iger"}</div>}
           <div className="menu-btns">
             <div className="menu-group-lbl">🏆 Nova dinastija — koliko sezon?</div>
@@ -2228,7 +2228,7 @@ export default function App() {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><h3 style={{ margin: 0 }}>Cilj: zgradi dinastijo</h3><button className="linkbtn" style={{ marginTop: 0, fontSize: 14 }} onClick={closeIntro}>Preskoči ✕</button></div>
               <div className="step"><div className="stepn">🏆</div><p><b>Tekmuješ z rivalsko AI dinastijo.</b> Vsako sezono oba sestavita ekipo; boljša osvoji <b>naslov</b>. Po vseh sezonah zmaga tisti z <b>več naslovi</b> — premagaj rivala.</p></div>
               <div className="step"><div className="stepn">🌱</div><p><b>Razvij mlade.</b> Draftaš prospekte z nizkim OVR, ki skozi sezone <b>zrastejo v zvezdnike</b> — poceni jedro prihodnosti.</p></div>
-              <div className="step"><div className="stepn">◆</div><p><b>Časi svoje okno.</b> Igralci se starajo (↗ V vzponu → ◆ Vrhunec → ↓ Upad). Ko je jedro v vrhuncu, greš <b>all-in</b> za naslov.</p></div>
+              <div className="step"><div className="stepn">◆</div><p><b>Ujemi svoje okno.</b> Igralci se starajo (↗ V vzponu → ◆ Vrhunec → ↓ Upad). Ko je jedro v vrhuncu, greš <b>all-in</b> za naslov.</p></div>
               <div className="step"><div className="stepn">🎰</div><p><b>Draft loterija:</b> kdor sezono izgubi, v prestopnem roku <b>izbira prvi</b>. Slaba sezona ti prinese boljši izbor — <b>tankiranje</b> je veljavna strategija.</p></div>
               <div className="mrow"><button className="bigbtn" style={{ flex: 1, fontSize: 15 }} onClick={() => setIntroPage(2)}>Naprej: kako poteka poteza →</button></div>
             </> : <>
