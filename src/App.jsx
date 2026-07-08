@@ -585,6 +585,42 @@ function useTicker(target, dur = 500) {
   return val;
 }
 
+function Confetti() {
+  const cols = ["#F0B429", "#E4762B", "#2E7D32", "#7C3AED", "#F5EBDC", "#FF6B5E"];
+  return (
+    <div className="confetti" aria-hidden="true">
+      {Array.from({ length: 22 }).map((_, i) => (
+        <i key={i} style={{ left: Math.random() * 100 + "%", background: cols[i % cols.length], animationDuration: (1.6 + Math.random() * 1.1) + "s", animationDelay: (Math.random() * 0.6) + "s" }} />
+      ))}
+    </div>
+  );
+}
+
+// vrstica razvoja rookieja z count-up (OVR se prešteje ob prikazu, s kaskadnim zamikom)
+function DevRow({ d, i }) {
+  const diff = d.to - d.from;
+  const big = diff >= 12, bust = diff <= 3;
+  const [v, setV] = useState(d.from);
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) { setV(d.to); return; }
+    const t0 = performance.now(), dur = 650, delay = 220 + i * 110;
+    let raf;
+    const step = (t) => {
+      const p = Math.max(0, Math.min(1, (t - t0 - delay) / dur));
+      setV(Math.round(d.from + (d.to - d.from) * (1 - Math.pow(1 - p, 3))));
+      if (p < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+  return (
+    <div className={"dev-row " + (big ? "boom" : bust ? "bust" : "")}>
+      <span>{d.side === "h" ? "TI" : "AI"} · {d.via || (d.starter ? "★" : "klop")} {surname(d.n)}{d.sulk ? " 😤" : ""}</span>
+      <b>{d.from} → {v} {big ? "💥" : bust ? "😐" : "↗"} ({diff >= 0 ? "+" : ""}{diff})</b>
+    </div>
+  );
+}
+
 function Scoreboard({ h, a, totalsH, totalsA }) {
   const prev = useRef({ h, a });
   const [d, setD] = useState({ h: 0, a: 0 });
@@ -813,7 +849,8 @@ export default function App() {
   };
 
   const start = () => { pingGame(); setG(freshRound(1, { h: 0, a: 0 })); setScreen("play"); setSel(null); setShowIntro(true); };
-  const startFranchise = (seasons) => { pingGame(); setG(freshSeason(1, { titles: { h: 0, a: 0 }, keepH: [], keepA: [], seasons, cum: { h: 0, a: 0 } })); setScreen("play"); setSel(null); setIntroPage(1); setShowIntro(true); setLbSaved(false); };
+  const closeIntro = () => { setShowIntro(false); try { localStorage.setItem("fo-seen-intro", "1"); } catch {} };
+  const startFranchise = (seasons) => { pingGame(); setG(freshSeason(1, { titles: { h: 0, a: 0 }, keepH: [], keepA: [], seasons, cum: { h: 0, a: 0 } })); setScreen("play"); setSel(null); setIntroPage(1); let seen = false; try { seen = !!localStorage.getItem("fo-seen-intro"); } catch {} setShowIntro(!seen); setLbSaved(false); };
   const nextRound = () => { setG(freshRound(g.round + 1, g.totals)); setScreen("play"); setSel(null); };
   const goOffseason = () => {
     const R = (lo, hi) => lo + Math.floor(Math.random() * (hi - lo + 1));
@@ -1049,15 +1086,15 @@ export default function App() {
       const starters = { ...g.h.starters };
       if (!starters[card.pos]) starters[card.pos] = card.id;
       ns = { ...ns, ...rm, h: { ...g.h, roster: [...g.h.roster, g.franchise && card.contract == null ? { ...card, contract: contractFor(card) } : card], starters, picks: hp }, a: { ...g.a, picks: ap } };
-      logs.push(`Zmagal si — ${card.n} je tvoj!`);
+      logs.push(`✅ ZMAGAL SI DRAŽBO — ${card.n} je tvoj!`);
     } else if (aV > hV && aV > 0) {
       let ap = { f: g.a.picks.f - aB.f, s: g.a.picks.s - aB.s, w: g.a.picks.w - aB.w };
       let hp = { ...g.h.picks };
       if (aB.w) [ap, hp] = paySwap(ap, hp);
       ns = { ...ns, ...rm, a: { ...g.a, roster: [...g.a.roster, g.franchise && card.contract == null ? { ...card, contract: contractFor(card) } : card], picks: ap }, h: { ...g.h, picks: hp } };
-      logs.push(`AI je zmagal in podpisal ${card.n}.`);
+      logs.push(`❌ IZGUBIL SI DRAŽBO — ${card.n} gre AI-ju (ponudil ${aV} proti tvojim ${hV}).`);
     } else {
-      logs.push(`Nihče ni dal dovolj — ${card.n} ostaja na trgu.`);
+      logs.push(`⚖️ Nihče ni dal dovolj — ${card.n} ostaja prost na trgu.`);
     }
     ns = { ...ns, log: [...ns.log, ...logs] };
     say(logs[logs.length - 1]);
@@ -1476,7 +1513,12 @@ export default function App() {
       @keyframes fopulse { 0% { box-shadow:0 0 0 0 rgba(240,180,41,0); } 30% { box-shadow:0 0 0 5px rgba(240,180,41,.55); border-color:#F0B429; } 100% { box-shadow:0 0 0 0 rgba(240,180,41,0); } }
       .chip.flash { animation: foflash .8s ease; }
       @keyframes foflash { 30% { background:#F0B429; border-color:#c9992a; color:#152744; transform:translateY(-2px); } }
-      @media (prefers-reduced-motion: reduce){ .fo *, .modal-bg, .modal, .toast { transition:none !important; animation:none !important; } }
+      .gavelstrike { display:inline-block; transform-origin:72% 82%; animation: fostrike .6s ease .08s 1; }
+      @keyframes fostrike { 0%{transform:rotate(-26deg)} 38%{transform:rotate(9deg)} 55%{transform:rotate(-2deg)} 72%{transform:rotate(5deg)} 100%{transform:rotate(0)} }
+      .confetti { position:fixed; inset:0; pointer-events:none; overflow:hidden; z-index:30; }
+      .confetti i { position:absolute; top:-14px; width:8px; height:13px; border-radius:1px; animation: foconf linear forwards; }
+      @keyframes foconf { to { transform: translateY(105vh) rotate(600deg); opacity:.15; } }
+      @media (prefers-reduced-motion: reduce){ .fo *, .modal-bg, .modal, .toast { transition:none !important; animation:none !important; } .confetti { display:none; } }
       /* ===== NAMIZNI (desktop) VIDEZ: širši prostor + večje kartice (velja od 700px navzgor) ===== */
       @media (min-width: 700px) {
         .wrap { max-width: 960px; padding: 16px 18px 108px; }
@@ -1561,7 +1603,7 @@ export default function App() {
         <div className="wrap">
           <div className="hdr"><h1>{fr ? `SEZONA ${g.season}/${g.seasons} — OBRAČUN` : `RUNDA ${g.round} — OBRAČUN`}</h1><div className="score-strip">{fr ? <><span>naslovi<b>TI {g.titles.h} : {g.titles.a} AI</b></span><span>seštevek<b>{g.cum ? g.cum.h : 0}</b></span></> : <span>cilj<b>{TARGET}</b></span>}</div></div>
           {fr
-            ? <div className="win-banner">{g.result.seasonWin === "h" ? "🏆 NASLOV je tvoj to sezono!" : g.result.seasonWin === "a" ? "AI GM osvoji sezono." : "Sezona izenačena."}</div>
+            ? <>{g.result.seasonWin === "h" && <Confetti />}<div className="win-banner">{g.result.seasonWin === "h" ? "🏆 NASLOV je tvoj to sezono!" : g.result.seasonWin === "a" ? "AI GM osvoji sezono." : "Sezona izenačena."}</div></>
             : g.champion ? (
             <div className="win-banner">🏆 {g.champion === "h" ? "TI SI PRVAK LIGE!" : g.champion === "a" ? "AI GM JE PRVAK LIGE." : "Izenačeno na vrhu!"}</div>
           ) : winner && <div className="win-banner">Rundo dobi: {winner} (+{Math.abs(hs.total - as.total)})</div>}
@@ -1580,14 +1622,7 @@ export default function App() {
           {g.result.dev && g.result.dev.length > 0 && (
             <div className="dev-box">
               <div className="dev-hd">🌱 RAZVOJ ROOKIEJEV</div>
-              {g.result.dev.map((d, i) => {
-                const diff = d.to - d.from;
-                const big = diff >= 12, bust = diff <= 3;
-                return <div key={i} className={"dev-row " + (big ? "boom" : bust ? "bust" : "")}>
-                  <span>{d.side === "h" ? "TI" : "AI"} · {d.via || (d.starter ? "★" : "klop")} {surname(d.n)}{d.sulk ? " 😤" : ""}</span>
-                  <b>{d.from} → {d.to} {big ? "💥" : bust ? "😐" : "↗"} ({diff >= 0 ? "+" : ""}{diff})</b>
-                </div>;
-              })}
+              {g.result.dev.map((d, i) => <DevRow key={i} d={d} i={i} />)}
               <div className="dev-note">★ štartar raste proti stropu · 🎓 mentor/coach omogoči rast s klopi · 😤 = 💎 elitni brez minut: dno potenciala in vpliv pade (nezadovoljen).</div>
             </div>
           )}
@@ -2016,7 +2051,7 @@ export default function App() {
       {aucCard && (
         <div className="modal-bg">
           <div className="modal">
-            <h3><Gavel s={20} /> Dražba: {aucCard.n}</h3>
+            <h3><span className="gavelstrike"><Gavel s={20} /></span> Dražba: {aucCard.n}</h3>
             <div className="auc-card"><PlayerCard c={aucCard} onClick={() => {}} /></div>
             <p>Superzvezdnik je na trgu! Skrivno ponudi picke — AI bo dal svojo ponudbo. <b>Višja ponudba igralca takoj podpiše.</b> Ob izenačenju ostane med prostimi igralci.</p>
             {!canSign(g.h.roster, aucCard) && <p className="red">Ne moreš ga podpisati (limit pozicije ali poln roster) — lahko samo odstopiš.</p>}
@@ -2187,10 +2222,10 @@ export default function App() {
       )}
 
       {showIntro && (
-        <div className="modal-bg" onClick={() => setShowIntro(false)}>
+        <div className="modal-bg" onClick={closeIntro}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             {introPage === 1 ? <>
-              <h3>Cilj: zgradi dinastijo</h3>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><h3 style={{ margin: 0 }}>Cilj: zgradi dinastijo</h3><button className="linkbtn" style={{ marginTop: 0, fontSize: 14 }} onClick={closeIntro}>Preskoči ✕</button></div>
               <div className="step"><div className="stepn">🏆</div><p><b>Tekmuješ z rivalsko AI dinastijo.</b> Vsako sezono oba sestavita ekipo; boljša osvoji <b>naslov</b>. Po vseh sezonah zmaga tisti z <b>več naslovi</b> — premagaj rivala.</p></div>
               <div className="step"><div className="stepn">🌱</div><p><b>Razvij mlade.</b> Draftaš prospekte z nizkim OVR, ki skozi sezone <b>zrastejo v zvezdnike</b> — poceni jedro prihodnosti.</p></div>
               <div className="step"><div className="stepn">◆</div><p><b>Časi svoje okno.</b> Igralci se starajo (↗ V vzponu → ◆ Vrhunec → ↓ Upad). Ko je jedro v vrhuncu, greš <b>all-in</b> za naslov.</p></div>
@@ -2205,7 +2240,7 @@ export default function App() {
               <div className="step"><div className="stepn">⇄</div><p><b>Trejd:</b> enkrat na potezo lahko AI-ju ponudiš menjavo igralcev 1:1 in dodaš picke za izravnavo.</p></div>
               <div className="mrow" style={{ gap: 8 }}>
                 <button className="abtn ghost" onClick={() => setIntroPage(1)}>← Nazaj</button>
-                <button className="bigbtn" style={{ flex: 1 }} onClick={() => setShowIntro(false)}>Razumem, gremo!</button>
+                <button className="bigbtn" style={{ flex: 1 }} onClick={closeIntro}>Razumem, gremo!</button>
               </div>
             </>}
           </div>
