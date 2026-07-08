@@ -170,13 +170,15 @@ const ROOKIES = ROOKIES_RAW.map((r, i) => ({ id: 1000 + i, n: r[0], club: "Draft
 const POS = ["PG", "SG", "SF", "PF", "C"];
 const POS_COLOR = { PG: "#2563EB", SG: "#0D9488", SF: "#16A34A", PF: "#E07020", C: "#7C3AED" };
 const CAP = 170, APRON = 20, MB = 145, TARGET = 500, AUCTION_OVR = 92;
+const CAP_GROW = 1.08; // plačni limit raste vsako sezono (kot v pravi NBA) — da plače (rastejo 5 %/leto) ne prehitijo capa
+const capFor = (season) => Math.round(CAP * Math.pow(CAP_GROW, Math.max(0, (season || 1) - 1))); // sez.1=170, 2=184, 3=198, 4=214, 5=231…
 const SIGN_LIMIT = 2; // max podpisov iz roke na potezo (velja za oba GM-a) — ustvari dilemo "podpiši zdaj ali čakaj"
 const PV = { f: 3, s: 1, w: 2 }; // osnovna vrednost NEporabljenih pickov (množi se s slotom)
 // slot = kje bi draftal; slabša ekipa (večji zaostanek) = boljši slot = dragocenejši pick
 const baseStrOf = (p) => (p.starterPts || 0) + (p.benchPts || 0) + (p.syn ? p.syn.total : 0);
 const slotTier = (gap) => gap >= 40 ? { label: "🎰 Loterija (top pick)", mult: 2.0, top: true } : gap >= 15 ? { label: "Zgodnji 1. krog", mult: 1.5, top: true } : gap > -15 ? { label: "Sredina 1. kroga", mult: 1.0, top: false } : { label: "Pozni pick", mult: 0.6, top: false };
 // progresivni luksuzni davek: prvih APRON M$ nad limitom −1/M, naprej −2/M
-const taxFor = (salary) => { const o = salary - CAP; if (o <= 0) return 0; return -(Math.min(o, APRON) + Math.max(0, o - APRON) * 2); };
+const taxFor = (salary, cap = CAP) => { const o = salary - cap; if (o <= 0) return 0; return -(Math.min(o, APRON) + Math.max(0, o - APRON) * 2); };
 
 // ============ POMOŽNE ============
 const shuffle = (a) => { const b = [...a]; for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; } return b; };
@@ -310,7 +312,7 @@ function bestStarters(roster, coach, injuredId) {
   return map;
 }
 
-function scoreRoster(roster, handCount, isFirst, starterMap, picks, coach, injuredId, deadCap = 0, phil = null) {
+function scoreRoster(roster, handCount, isFirst, starterMap, picks, coach, injuredId, deadCap = 0, phil = null, cap = CAP) {
   const map = starterMap || bestStarters(roster, coach, injuredId);
   const starters = {};
   POS.forEach((p) => { const c = roster.find((x) => x.id === map[p]); if (c && c.id !== injuredId) starters[p] = c; });
@@ -336,7 +338,7 @@ function scoreRoster(roster, handCount, isFirst, starterMap, picks, coach, injur
   const moneyball = roster.length === 10 && payroll < mbThr ? 25 : 0;
   const doncic = sCards.some((c) => c.n.includes("Dončić")) ? 5 : 0;
   const leader = roster.some((c) => c.tr === "VD") ? 8 : 0;
-  const tax = taxFor(payroll);
+  const tax = taxFor(payroll, cap);
   const missR = 10 - roster.length;
   const missPos = POS.filter((p) => !starters[p]).length;
   const pickPts = picks ? PV.f * picks.f + PV.s * picks.s : 0;
@@ -348,7 +350,7 @@ function scoreRoster(roster, handCount, isFirst, starterMap, picks, coach, injur
   else if (phil === "razvoj") { const n = Math.min(6, roster.filter((c) => c.age <= 24).length); if (n) { philPts = 6 * n; philLabel = `🌱 Razvojni klub (${n} mladih)`; } }
   else if (phil === "zvezde") { const n = sCards.filter((c) => c.ovr >= 90).length; if (n) { philPts = 12 * n; philLabel = `⭐ Lov na zvezde (${n})`; } }
   const total = starterPts + lb.spacing + lb.wall + lb.dirigent + lb.coachPts + syn.total + benchPts + sixthPts + duoPts + big3 + superteam + moneyball + doncic + leader + pickPts + tax + stackPen + missR * -20 + missPos * -10 + handCount * -5 + (isFirst ? 20 : 0) + philPts;
-  return { starters, bench, starterPts, ...lb, syn, benchPts, sixth, sixthPts, duoPts, duoClubs, big3, superteam, moneyball, doncic, leader, pickPts, picks, tax, stackPen, stackPos, salary, eff, payroll, deadCap: deadCap || 0, mbThr, coach, phil, philPts, philLabel, missR, missPos, handCount, isFirst, total };
+  return { starters, bench, starterPts, ...lb, syn, benchPts, sixth, sixthPts, duoPts, duoClubs, big3, superteam, moneyball, doncic, leader, pickPts, picks, tax, stackPen, stackPos, salary, eff, payroll, deadCap: deadCap || 0, mbThr, coach, phil, philPts, philLabel, missR, missPos, handCount, isFirst, cap, total };
 }
 
 function freshRound(round, totals) {
@@ -362,8 +364,9 @@ function freshRound(round, totals) {
 
 const contractFor = (c) => c.rookie ? 3 : c.age >= 30 ? 1 : 2; // rookie 3, veteran 1, ostali 2
 const marketSal = (ovr) => Math.max(3, Math.min(58, Math.round((ovr - 70) * 2.1))); // tržna plača glede na OVR
-const resignSal = (c) => Math.max(Math.round(c.sal * 1.25), marketSal(c.ovr)); // podaljšanje = tržna vrednost (zvezde/razviti dragi)
-const ESCALATE = 1.06; // letni dvig plač obstoječim pogodbam
+// Bird rights: SVOJEGA igralca podaljšaš ceneje kot na trgu (−15 % zvestoba) — kontinuiteto nagradimo, ne kaznujemo
+const resignSal = (c) => Math.max(3, Math.round(marketSal(c.ovr) * 0.85));
+const ESCALATE = 1.05; // letni dvig plač obstoječim pogodbam (blago — cap raste hitreje)
 
 // franšizna sezona: season 1 = iz nič; season 2+ = ohrani roster (keepH/keepA)
 function freshSeason(season, opts) {
@@ -382,7 +385,7 @@ function aiBidFor(card, g) {
   const none = { f: 0, s: 0, w: 0 };
   if (!canSign(g.a.roster, card)) return none;
   let maxBid = Math.round((spts(card) - 88) * 0.9);
-  if (salaryOf(g.a.roster) + card.sal > CAP + APRON) maxBid -= 8;
+  if (salaryOf(g.a.roster) + card.sal > capFor(g.season) + APRON) maxBid -= 8;
   if (maxBid <= 0) return none;
   const P = g.a.picks;
   let best = none, bestV = 0;
@@ -453,7 +456,7 @@ function aiPlay(g) {
       .sort((x, y) => (y.m - x.m) || (val(y.c) - val(x.c)));
     for (const { c } of cands) {
       const stack3 = posCount(a.roster, c.pos) === 2;
-      const need = (salaryOf(a.roster) + c.sal > CAP + APRON ? thr + 15 : thr) + (stack3 ? 15 : 0);
+      const need = (salaryOf(a.roster) + c.sal > capFor(g.season) + APRON ? thr + 15 : thr) + (stack3 ? 15 : 0);
       if (val(c) >= need || (g.finalFor === "a" && a.roster.length < 10)) {
         let sc = g.franchise && c.contract == null ? { ...c, contract: contractFor(c) } : { ...c };
         if (sc.rookie && sc.tier === "safe" && !sc.developed) {
@@ -656,15 +659,16 @@ function Scoreboard({ h, a, totalsH, totalsA }) {
   );
 }
 
-function CapMeter({ salary }) {
-  const pct = Math.min(100, (salary / 240) * 100);
-  const capPct = (CAP / 240) * 100;
-  const apronPct = ((CAP + APRON) / 240) * 100;
-  const over = salary > CAP;
-  const deep = salary > CAP + APRON;
+function CapMeter({ salary, cap = CAP }) {
+  const max = cap + 70;
+  const pct = Math.min(100, (salary / max) * 100);
+  const capPct = (cap / max) * 100;
+  const apronPct = ((cap + APRON) / max) * 100;
+  const over = salary > cap;
+  const deep = salary > cap + APRON;
   return (
     <div className="capm">
-      <div className="capm-lbl"><span>Plačna masa</span><span className={over ? "red" : "green"}>{salary} / {CAP} M$ {over ? `→ davek ${taxFor(salary)}${deep ? " (apron!)" : " (mehki davek)"}` : "✓ pod limitom"}</span></div>
+      <div className="capm-lbl"><span>Plačna masa</span><span className={over ? "red" : "green"}>{salary} / {cap} M$ {over ? `→ davek ${taxFor(salary, cap)}${deep ? " (apron!)" : " (mehki davek)"}` : "✓ pod limitom"}</span></div>
       <div className="capm-bar">
         <div className="capm-fill" style={{ width: pct + "%", background: deep ? "#8f1d12" : over ? "#D97706" : "#2E7D32" }} />
         <div className="capm-cap" style={{ left: capPct + "%" }} />
@@ -700,7 +704,7 @@ function BonusChips({ r, onExplain, coach }) {
   if (r.moneyball) chips.push(["💰 Moneyball", r.moneyball, `💰 Moneyball: poln roster (10 igralcev) pod pragom plač (${r.mbThr || 145} M$) → +25.`]);
   if (r.doncic) chips.push(["🇸🇮 Dončić", r.doncic, "🇸🇮 Dončić v prvi peterki → +5."]);
   if (r.pickPts) chips.push(["🥇 Neporabljeni picki", r.pickPts, `🥇 Neporabljeni draft picki ob koncu runde: vsak 🥇 +${PV.f}, vsak 🥈 +${PV.s}. Namig: raje jih porabi za draft prospekta (gumb 🎫) — surov, a se razvije.`]);
-  if (r.tax) chips.push(["💸 Luksuzni davek", r.tax, `💸 Luksuzni davek: plačna masa nad limitom 170 M$ — prvih 20 M$ čez po −1/M, nato po −2/M (apron). Tvoja masa: ${r.payroll} M$.`]);
+  if (r.tax) chips.push(["💸 Luksuzni davek", r.tax, `💸 Luksuzni davek: plačna masa nad limitom ${r.cap || CAP} M$ — prvih 20 M$ čez po −1/M, nato po −2/M (apron). Tvoja masa: ${r.payroll} M$.`]);
   if (r.stackPen) chips.push([`🚫 Preveč na poziciji (${r.stackPos.join(", ")})`, r.stackPen, `🚫 Prenatrpana pozicija: 3 igralci na isti poziciji (${r.stackPos.join(", ")}) → −15 vsaka. Ne kopiči poceni globine — raje razporedi 2-2-2-2-2 ali vzemi manj, boljših.`]);
   const [open, setOpen] = useState(false);
   const sum = chips.reduce((s, c) => s + c[1], 0);
@@ -882,7 +886,7 @@ export default function App() {
     let aRoster = [...aKeepAuto];
     aExp.sort((x, y) => val(y) - val(x)).forEach((c) => {
       const ns = resignSal(c);
-      if (val(c) >= 58 && effSalary([...aRoster, { ...c, sal: ns }], g.a.coach) <= CAP + APRON + 15) aRoster.push({ ...c, sal: ns, contract: c.age >= 30 ? 1 : 2 });
+      if (val(c) >= 58 && effSalary([...aRoster, { ...c, sal: ns }], g.a.coach) <= capFor(g.season + 1) + APRON + 15) aRoster.push({ ...c, sal: ns, contract: c.age >= 30 ? 1 : 2 });
     });
     // DRAFT LOTERIJA: poraženec sezone izbira prvi. Izloči prospekte, ki so že v ligi (isto ime → brez dvojnikov).
     const ownedNames = new Set([...hAged, ...aAged].map((c) => c.n));
@@ -994,8 +998,9 @@ export default function App() {
       });
     };
     const st = { ...state, h: { ...state.h, roster: grow(state.h.roster, state.h.coach, state.injured.h, "h") }, a: { ...state.a, roster: grow(state.a.roster, state.a.coach, state.injured.a, "a") } };
-    const hs = scoreRoster(st.h.roster, st.h.hand.length, st.finisher === "h", st.h.starters, st.h.picks, st.h.coach, st.injured.h, st.h.deadCap, st.philosophy && st.philosophy.h);
-    const as = scoreRoster(st.a.roster, st.a.hand.length, st.finisher === "a", null, st.a.picks, st.a.coach, st.injured.a, 0, st.philosophy && st.philosophy.a);
+    const seasonCap = capFor(st.season);
+    const hs = scoreRoster(st.h.roster, st.h.hand.length, st.finisher === "h", st.h.starters, st.h.picks, st.h.coach, st.injured.h, st.h.deadCap, st.philosophy && st.philosophy.h, seasonCap);
+    const as = scoreRoster(st.a.roster, st.a.hand.length, st.finisher === "a", null, st.a.picks, st.a.coach, st.injured.a, 0, st.philosophy && st.philosophy.a, seasonCap);
     // slot-vrednost pickov: slabša ekipa dobi dragocenejše (višje) picke
     const hBase = baseStrOf(hs), aBase = baseStrOf(as);
     const hSlot = slotTier(aBase - hBase), aSlot = slotTier(hBase - aBase);
@@ -1644,12 +1649,13 @@ export default function App() {
   // ---- PRESTOPNI ROK (offseason) ----
   if (screen === "offseason" && offseason) {
     const { hExp, hKeepAuto, aRoster, decisions, draftClass, humanFirst, hDraftPicks, hDraftUsed } = offseason;
+    const nextCap = capFor(g.season + 1);
     const projectedSal = effSalary([...hKeepAuto, ...hExp.filter((c) => decisions[c.id]).map((c) => ({ ...c, sal: resignSal(c) }))], null);
     return (
       <div className="fo">{css}
         <div className="wrap">
           <div className="hdr"><h1>PRESTOPNI ROK · po sezoni {g.season}</h1></div>
-          <div className="hint" style={{ marginBottom: 8 }}>Pogodbam je poteklo leto. Igralci brez pogodbe (spodaj) postanejo prosti — <b>podaljšaj po tržni ceni</b> (zvezde in razviti mladi so zdaj dragi!) ali <b>pusti oditi</b>. Obstoječim pogodbam plača zraste +6 %. Cap 170 M$ — če preplačaš, te davek požre v točkah.</div>
+          <div className="hint" style={{ marginBottom: 8 }}>Pogodbam je poteklo leto. Igralci brez pogodbe (spodaj) postanejo prosti — <b>podaljšaj</b> (svoje igralce dobiš z <b>−15 % zvestobe</b>, Bird pravica!) ali <b>pusti oditi</b>. Obstoječim pogodbam plača zraste +5 %. Cap raste na <b>{nextCap} M$</b> to sezono — če preplačaš, te davek požre v točkah.</div>
           {offseason.ageReport && offseason.ageReport.length > 0 && (() => {
             const grp = (side) => offseason.ageReport.filter((r) => r.side === side);
             const renderRows = (rows) => [...rows.filter((r) => r.retired), ...rows.filter((r) => !r.retired).sort((a, b) => a.d - b.d)].map((r, i) => (
@@ -1686,10 +1692,10 @@ export default function App() {
             </div>
           </div>
           <div className="panel">
-            <div className="lbl">Ostajajo (pogodba teče, plača +6 %) · {hKeepAuto.length}</div>
+            <div className="lbl">Ostajajo (pogodba teče, plača +5 %) · {hKeepAuto.length}</div>
             <div className="roster-grid">{hKeepAuto.map((c) => <PlayerCard key={c.id} c={c} mini onClick={() => setOffInfo(c)} />)}</div>
           </div>
-          <div className="hint">Projekcija plačne mase v novo sezono: <b style={{ color: projectedSal > CAP ? "#C0392B" : "#215c26" }}>{projectedSal} M$</b>{projectedSal > CAP + APRON ? " — globoko v davku! Razmisli, koga pustiš in nadomestiš s poceni draftom." : projectedSal > CAP ? " — nad limitom, davek te čaka." : " — pod limitom."} · AI obdrži {aRoster.length}.</div>
+          <div className="hint">Projekcija plačne mase v novo sezono: <b style={{ color: projectedSal > nextCap ? "#C0392B" : "#215c26" }}>{projectedSal} M$</b> (cap {nextCap} M$){projectedSal > nextCap + APRON ? " — globoko v davku! Razmisli, koga pustiš in nadomestiš s poceni draftom." : projectedSal > nextCap ? " — nad limitom, davek te čaka." : " — pod limitom."} · AI obdrži {aRoster.length}.</div>
           {(offseason.unhappy || []).filter((u) => !offseason.sold[u.id]).length > 0 && (
             <div className="panel" style={{ borderColor: "#7a2a2a" }}>
               <div className="lbl" style={{ color: "#C0392B" }}>😤 HOČEM VEN — nezadovoljni igralci</div>
@@ -1742,7 +1748,7 @@ export default function App() {
                   <li>OVR <b>{offInfo.ovr}</b> · vpliv {offInfo.pm >= 0 ? "+" : ""}{offInfo.pm} · plača {offInfo.sal} M$ · pogodba 📄{offInfo.contract != null ? offInfo.contract : "—"}</li>
                   <li>V peterki <b>{spts(offInfo)}</b> tč · na klopi {Math.floor(offInfo.ovr / 2)} tč.</li>
                   {offInfo.rookie && <li className="pot" style={{ color: ROOK_TIER[offInfo.tier].col }}><Ico k={offInfo.tier} s={14} /> {ROOK_TIER[offInfo.tier].n} · potencial {offInfo.potLow}–{offInfo.potHigh} — {ROOK_TIER[offInfo.tier].job}.</li>}
-                  {offInfo.contract != null && !offInfo.rookie && <li>Ob podaljšanju bi zahteval <b>{resignSal(offInfo)} M$</b> (tržna cena).</li>}
+                  {offInfo.contract != null && !offInfo.rookie && <li>Ob podaljšanju bi zahteval <b>{resignSal(offInfo)} M$</b> (tržna cena −15 % zvestobe).</li>}
                   {offInfo.unhappy && <li style={{ color: "#C0392B" }}>Nezadovoljen — vpliv bo padel v minus, dokler ga ne trejdaš.</li>}
                 </ul>
                 <div className="mrow"><button className="abtn ghost" style={{ flex: 1 }} onClick={() => setOffInfo(null)}>Zapri</button></div>
@@ -1760,13 +1766,14 @@ export default function App() {
   const philPending = g.franchise && (!g.philosophy || !g.philosophy.h);
   const coachPending = !philPending && !g.h.coach;
   const myEff = effSalary(g.h.roster, g.h.coach);
-  const proj = scoreRoster(g.h.roster, 0, false, g.h.starters, g.h.picks, g.h.coach, g.injured.h, g.h.deadCap, g.philosophy && g.philosophy.h);
+  const capNow = capFor(g.season);
+  const proj = scoreRoster(g.h.roster, 0, false, g.h.starters, g.h.picks, g.h.coach, g.injured.h, g.h.deadCap, g.philosophy && g.philosophy.h, capNow);
   const starterCards = Object.values(proj.starters);
   // ocena rosterja (najboljša peterka) — za mejni prispevek igralca
-  const rScore = (roster, side) => scoreRoster(roster, 0, false, null, g[side].picks, g[side].coach, g.injured[side], side === "h" ? (g.h.deadCap || 0) : 0).total;
+  const rScore = (roster, side) => scoreRoster(roster, 0, false, null, g[side].picks, g[side].coach, g.injured[side], side === "h" ? (g.h.deadCap || 0) : 0, null, capNow).total;
   const addValue = (roster, card, side) => rScore([...roster, card], side) - rScore(roster, side); // koliko doda nov igralec
   const contribOf = (roster, card, side) => rScore(roster, side) - rScore(roster.filter((c) => c.id !== card.id), side); // koliko že prispeva
-  const aiProj = scoreRoster(g.a.roster, 0, false, null, g.a.picks, g.a.coach, g.injured.a, 0, g.philosophy && g.philosophy.a);
+  const aiProj = scoreRoster(g.a.roster, 0, false, null, g.a.picks, g.a.coach, g.injured.a, 0, g.philosophy && g.philosophy.a, capNow);
   const mySlot = slotTier(baseStrOf(aiProj) - baseStrOf(proj)); // moj draft slot (zaostajam = boljši)
   const drawPhase = g.phase === "draw" && !aiThinking && !g.auction && !coachPending && !philPending;
   const actPhase = g.phase === "action" && !aiThinking && !g.auction && !coachPending && !philPending;
@@ -1805,7 +1812,7 @@ export default function App() {
               <span>roka {g.a.hand.length} kart</span>
               <Picks p={g.a.picks} />
             </div>
-            {g.a.roster.length > 0 && <CapMeter salary={effSalary(g.a.roster, g.a.coach)} />}
+            {g.a.roster.length > 0 && <CapMeter salary={effSalary(g.a.roster, g.a.coach)} cap={capNow} />}
             {g.a.roster.length > 0 && <div className="hint" style={{ margin: "6px 0 4px" }}>★ = AI-jeva prva peterka. {(() => { const miss = POS.filter((p) => !aiProj.starters[p]); return miss.length ? `Manjkajo pozicije: ${miss.join(", ")} (−${miss.length * 10}).` : "Vseh 5 pozicij pokritih."; })()}</div>}
             <div className="roster-grid" style={{ marginTop: 6 }}>
               {g.a.roster.map((c) => <PlayerCard key={c.id} c={c} mini starter={aiProj.starters[c.pos] && aiProj.starters[c.pos].id === c.id && g.injured.a !== c.id} injured={g.injured.a === c.id} onClick={() => setInspect({ card: c, side: "a" })} />)}
@@ -1863,7 +1870,7 @@ export default function App() {
             {g.h.coach && <button className="coach-chip" onClick={() => setHelp("roster")}><Ico k="cap" s={16} /> <b>{coachOf(g.h.coach).n}</b> · {coachOf(g.h.coach).t}</button>}
           </div>
           {g.h.deadCap > 0 && <div className="hint red">✂️ Dead cap: +{g.h.deadCap} M$ v plačni masi do konca runde (odpuščeni igralci).</div>}
-          <CapMeter salary={myEff + (g.h.deadCap || 0)} />
+          <CapMeter salary={myEff + (g.h.deadCap || 0)} cap={capNow} />
           {(() => {
             const starterIds = new Set(POS.map((p) => g.h.starters[p]).filter((id) => id != null));
             const bench = g.h.roster.filter((c) => !starterIds.has(c.id));
@@ -2032,7 +2039,7 @@ export default function App() {
               <li><b>OVR {reveal.ovr}</b> — kakovost igralca.</li>
               <li><b>Vpliv {reveal.pm >= 0 ? "+" : ""}{reveal.pm}</b> (zelena/rdeča) — šteje <b>dvojno</b>, a samo če je igralec v prvi peterki.</li>
               <li>V <b>prvi peterki</b> torej prinese <b>{spts(reveal)} točk</b> ({reveal.ovr} + 2×{reveal.pm}). Na <b>klopi</b> le {Math.floor(reveal.ovr / 2)}.</li>
-              <li>{reveal.disc ? <>Plača <b>{reveal.sal} M$</b> (popust −25 %, prej {reveal.origSal} M$) — cenejši, ker si ga pobral iz AI-jevih odpuščenih.</> : <>Plača <b>{reveal.sal} M$</b> gre v plačno maso (limit {CAP} M$).</>}</li>
+              <li>{reveal.disc ? <>Plača <b>{reveal.sal} M$</b> (popust −25 %, prej {reveal.origSal} M$) — cenejši, ker si ga pobral iz AI-jevih odpuščenih.</> : <>Plača <b>{reveal.sal} M$</b> gre v plačno maso (limit {capNow} M$).</>}</li>
             </ul>
             <UnlockPreview card={reveal} sCards={starterCards} />
             {canSign(g.h.roster, reveal) && (
@@ -2310,7 +2317,7 @@ function Rules({ onClose }) {
           <li><b>Prva peterka</b> (tap na igralca): štartar šteje <b>OVR + 2× vpliv</b> (zeleno/rdeče število na karti). Klop šteje OVR÷2 — zato je vpliv pomemben samo pri štartarjih.</li>
           <li><b>Lastnosti:</b> 🎯 2+ snajperja v peterki +10 · 🛡️ 2+ branilca +10 · 🧠 organizator +8 · 🔥 najboljši šesti mož na klopi šteje poln OVR + doda svoj vpliv · ⭐ vodja v rosterju +8.</li>
           <li><b>Kemija:</b> klubski dvojec +10 (do 3×) · Big Three (3× OVR 90+ v rosterju) +20 · <b>🌟 Superteam (3 štartarji z OVR 93+) +35</b> · Moneyball (poln roster pod {MB} M$) +25 · Dončić v peterki +5 🇸🇮.</li>
-          <li><b>💸 Progresivni davek:</b> prvih {APRON} M$ nad limitom {CAP} M$ stane −1 točko/M$ (mehki davek), vsak milijon naprej pa −2 (apron). Superteam pot: 3 superzvezdniki + poceni klop se z bonusom +35 lahko splača kljub davku!</li>
+          <li><b>💸 Progresivni davek:</b> prvih {APRON} M$ nad plačnim limitom ({CAP} M$ v 1. sezoni, <b>raste ~8 %/sezono</b> — kot v NBA) stane −1 točko/M$ (mehki davek), vsak milijon naprej pa −2 (apron). Ker cap raste, lahko svoje jedro obdržiš več sezon; svoje igralce podaljšaš z −15 % zvestobe (Bird pravica). Superteam pot: 3 superzvezdniki + poceni klop se z bonusom +35 lahko splača kljub davku!</li>
           <li><b>Kazni:</b> manjkajoč igralec −20 · prazna pozicija −10 · karta v roki −5. Prvi zaključen roster +20.</li>
         </ul>
         <div className="mrow"><button className="abtn ghost" style={{ flex: 1 }} onClick={onClose}>Zapri</button></div>
