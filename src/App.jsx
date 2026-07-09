@@ -19,10 +19,10 @@ const RAW = [
   ["Tyrese Haliburton","Indiana","PG",46,92,8,"OR"],
   ["Cade Cunningham","Detroit","PG",46,91,5,"OR"],
   ["De'Aaron Fox","San Antonio","PG",37,89,2,"BR"],
-  ["Jamal Murray","Denver","PG",46,88,5,"SN"],
-  ["Ja Morant","Memphis","PG",39,88,2,"OR"],
-  ["Trae Young","Atlanta","PG",46,88,-1,"OR"],
-  ["Immanuel Quickley","Toronto","PG",33,84,0,"SN"],
+  ["Jamal Murray","Denver","PG",40,88,5,"SN"],
+  ["Ja Morant","Memphis","PG",34,88,2,"OR"],
+  ["Trae Young","Atlanta","PG",36,88,2,"OR"],
+  ["Immanuel Quickley","Toronto","PG",18,84,1,"SN"],
   ["Coby White","Chicago","PG",12,84,2,"SN"],
   ["Payton Pritchard","Boston","PG",7,84,4,"SM"],
   ["Andrew Nembhard","Indiana","PG",18,83,4,"BR"],
@@ -39,21 +39,21 @@ const RAW = [
   // ---- SG (23) ----
   ["Anthony Edwards","Minnesota","SG",45,95,6,"SN"],
   ["Donovan Mitchell","Cleveland","SG",46,93,7,"SN"],
-  ["Devin Booker","Phoenix","SG",54,92,1,"SN"],
-  ["Jaylen Brown","Boston","SG",53,91,4,"BR"],
+  ["Devin Booker","Phoenix","SG",44,92,3,"SN"],
+  ["Jaylen Brown","Boston","SG",44,91,4,"BR"],
   ["Tyrese Maxey","Philadelphia","SG",38,90,2,"SN"],
   ["Jalen Williams","Oklahoma City","SG",7,90,9,"BR"],
   ["Amen Thompson","Houston","SG",10,88,7,"BR"],
   ["Derrick White","Boston","SG",28,86,6,"BR"],
   ["Austin Reaves","LA Lakers","SG",14,86,3,"OR"],
-  ["Zach LaVine","Sacramento","SG",48,85,-2,"SN"],
-  ["Josh Giddey","Chicago","SG",25,85,1,"OR"],
+  ["Zach LaVine","Sacramento","SG",20,85,0,"SN"],
+  ["Josh Giddey","Chicago","SG",18,85,1,"OR"],
   ["Christian Braun","Denver","SG",5,84,5,"BR"],
   ["Norman Powell","Miami","SG",21,84,2,"SN"],
   ["Cam Thomas","Brooklyn","SG",6,83,-2,"SM"],
   ["Malik Monk","Sacramento","SG",18,82,0,"SM"],
   ["Quentin Grimes","Philadelphia","SG",8,82,1,"SN"],
-  ["Anfernee Simons","Boston","SG",27,82,-1,"SN"],
+  ["Anfernee Simons","Boston","SG",12,82,-1,"SN"],
   ["Klay Thompson","Dallas","SG",17,80,-1,"SN"],
   ["Malik Beasley","Detroit","SG",6,80,0,"SN"],
   ["Isaiah Joe","Oklahoma City","SG",6,80,2,"SN"],
@@ -62,10 +62,10 @@ const RAW = [
   ["Gradey Dick","Toronto","SG",6,79,-1,"SN"],
   // ---- SF (23) ----
   ["Jayson Tatum","Boston","SF",54,95,7,"SN"],
-  ["Kevin Durant","Houston","SF",55,93,3,"SN"],
+  ["Kevin Durant","Houston","SF",48,93,4,"SN"],
   ["LeBron James","LA Lakers","SF",53,93,4,"VD"],
   ["Kawhi Leonard","LA Clippers","SF",50,92,4,"BR"],
-  ["Jimmy Butler","Golden State","SF",54,90,4,"VD"],
+  ["Jimmy Butler","Golden State","SF",44,90,4,"VD"],
   ["Paolo Banchero","Orlando","SF",15,90,2,"OR"],
   ["Franz Wagner","Orlando","SF",38,89,4,"OR"],
   ["OG Anunoby","New York","SF",40,86,5,"BR"],
@@ -76,7 +76,7 @@ const RAW = [
   ["Jaden McDaniels","Minnesota","SF",23,84,3,"BR"],
   ["Herbert Jones","New Orleans","SF",14,84,3,"BR"],
   ["Josh Hart","New York","SF",19,83,3,"VD"],
-  ["Andrew Wiggins","Miami","SF",28,83,0,"BR"],
+  ["Andrew Wiggins","Miami","SF",15,83,1,"BR"],
   ["Aaron Nesmith","Indiana","SF",11,82,3,"BR"],
   ["Keegan Murray","Sacramento","SF",12,82,1,"SN"],
   ["Matas Buzelis","Chicago","SF",6,82,0,"SM"],
@@ -90,10 +90,10 @@ const RAW = [
   ["Pascal Siakam","Indiana","PF",45,89,5,"VD"],
   ["Jaren Jackson Jr.","Memphis","PF",25,88,4,"BR"],
   ["Jalen Johnson","Atlanta","PF",30,87,3,"OR"],
-  ["Zion Williamson","New Orleans","PF",39,87,-1,"OR"],
-  ["Scottie Barnes","Toronto","PF",40,87,0,"OR"],
-  ["Lauri Markkanen","Utah","PF",46,86,-2,"SN"],
-  ["Julius Randle","Minnesota","PF",33,85,2,"OR"],
+  ["Zion Williamson","New Orleans","PF",28,87,2,"OR"],
+  ["Scottie Barnes","Toronto","PF",27,87,1,"OR"],
+  ["Lauri Markkanen","Utah","PF",28,86,1,"SN"],
+  ["Julius Randle","Minnesota","PF",25,85,2,"OR"],
   ["Aaron Gordon","Denver","PF",23,85,3,"BR"],
   ["Naz Reid","Minnesota","PF",25,83,2,"SM"],
   ["P.J. Washington","Dallas","PF",14,82,2,"BR"],
@@ -107,22 +107,22 @@ const RAW = [
   ["GG Jackson","Memphis","PF",2,79,0,"SM"],
   ["Guerschon Yabusele","New York","PF",6,79,1,"SM"],
   ["Naji Marshall","Dallas","PF",9,79,1,"BR"],
-  ["Kyle Kuzma","Milwaukee","PF",22,79,-2,"SN"],
+  ["Kyle Kuzma","Milwaukee","PF",8,79,-2,"SN"],
   // ---- C (24) ----
   ["Nikola Jokić","Denver","C",55,99,13,"OR"],
   ["Victor Wembanyama","San Antonio","C",13,96,10,"BR"],
-  ["Joel Embiid","Philadelphia","C",55,90,1,"VD"],
+  ["Joel Embiid","Philadelphia","C",44,90,3,"VD"],
   ["Chet Holmgren","Oklahoma City","C",14,90,8,"BR"],
-  ["Karl-Anthony Towns","New York","C",53,90,4,"SN"],
+  ["Karl-Anthony Towns","New York","C",44,90,4,"SN"],
   ["Alperen Şengün","Houston","C",34,90,5,"OR"],
   ["Bam Adebayo","Miami","C",37,89,4,"BR"],
-  ["Domantas Sabonis","Sacramento","C",42,88,1,"OR"],
+  ["Domantas Sabonis","Sacramento","C",34,88,2,"OR"],
   ["Ivica Zubac","LA Clippers","C",18,86,5,"BR"],
   ["Jarrett Allen","Cleveland","C",20,86,4,"BR"],
   ["Rudy Gobert","Minnesota","C",35,85,4,"BR"],
   ["Isaiah Hartenstein","Oklahoma City","C",28,84,6,"SM"],
   ["Walker Kessler","Utah","C",4,84,5,"BR"],
-  ["Nic Claxton","Brooklyn","C",27,83,0,"BR"],
+  ["Nic Claxton","Brooklyn","C",14,83,1,"BR"],
   ["Dereck Lively II","Dallas","C",5,83,4,"BR"],
   ["Daniel Gafford","Dallas","C",14,83,2,"SM"],
   ["Onyeka Okongwu","Atlanta","C",16,83,1,"SM"],
@@ -432,8 +432,9 @@ function aiPlay(g) {
   // AI kupuje iz TVOJIH odpuščenih (hDisc) s popustom
   const market = hDisc.filter((c) => canSign(a.roster, c)).map((c) => asDiscount(c)).sort((x, y) => val(y) - val(x));
   const bestMarket = market[0];
-  let drew;
+  let drew, drewFromH = null;
   if (bestMarket && val(bestMarket) >= thrDraw) {
+    drewFromH = hDisc.find((c) => c.id === bestMarket.id) || null; // izvirnik (polna cena) — če ga AI ne obdrži, se vrne v TVOJ odpad
     drew = bestMarket; hDisc = hDisc.filter((c) => c.id !== bestMarket.id);
     logs.push(`AI je iz tvojih odpuščenih pobral ${drew.n} s popustom (${drew.sal} M$ namesto ${drew.origSal}).`);
   } else {
@@ -474,9 +475,15 @@ function aiPlay(g) {
   if (a.hand.length > 0) {
     const worst = [...a.hand].sort((x, y) => val(x) - val(y))[0];
     a.hand = a.hand.filter((x) => x.id !== worst.id);
-    aDisc = [...aDisc, worst];
-    discardedCard = worst;
-    logs.push(`AI je odpustil: ${worst.n} (na voljo tebi s popustom).`);
+    if (drewFromH && worst.id === drewFromH.id) {
+      // AI je pobral tvojo odpadno karto, a je ni obdržal → vrne se v TVOJ odpad (ne na tvoj trg — brez izkoriščanja "odvrzi in vzemi nazaj")
+      hDisc = [...hDisc, drewFromH];
+      logs.push(`AI je premislil in vrnil ${worst.n} nazaj v tvoj odpad.`);
+    } else {
+      aDisc = [...aDisc, worst];
+      discardedCard = worst;
+      logs.push(`AI je odpustil: ${worst.n} (na voljo tebi s popustom).`);
+    }
   }
   return { ...g, deck, hDisc, aDisc, draftBoard: board, draftUsed, a, injured, reshuffled, aiTurns: turnN, log: [...g.log, ...logs], discardedCard };
 }
@@ -553,7 +560,7 @@ function PlayerCard({ c, onClick, selected, mini, starter, dim, ribbon, injured,
       <div className="trait"><Ico k={c.tr} s={13} /> {TRAITS[c.tr].n}</div>
       {c.rookie
         ? <><div className="pot" style={{ color: ROOK_TIER[c.tier].col }}><Ico k={c.tier} s={13} /> {ROOK_TIER[c.tier].n} · potencial {c.potLow}–{c.potHigh}</div><div className="pot-job">{ROOK_TIER[c.tier].job}</div></>
-        : <div className="vals">v peterki <b>{spts(c)}</b> · klop {Math.floor(c.ovr / 2)}</div>}
+        : <div className="vals"><span className="val-chip">v peterki <b>{spts(c)}</b></span><span className="val-chip">klop {Math.floor(c.ovr / 2)}</span></div>}
       <div className="card-row btm">
         <span className="sal">{c.disc ? <><span className="oldsal">{c.origSal}</span> {c.sal} M$</> : `${c.sal} M$`}</span>
         <span className={"pm " + (c.pm >= 0 ? "pos" : "neg")}>vpliv {c.pm >= 0 ? "+" : ""}{c.pm}</span>
@@ -624,7 +631,7 @@ function DevRow({ d, i }) {
   );
 }
 
-function Scoreboard({ h, a, totalsH, totalsA }) {
+function Scoreboard({ h, a, rosterH, rosterA }) {
   const prev = useRef({ h, a });
   const [d, setD] = useState({ h: 0, a: 0 });
   useEffect(() => {
@@ -643,7 +650,7 @@ function Scoreboard({ h, a, totalsH, totalsA }) {
       <div className="sb-side">
         <div className="sb-team">TI</div>
         <div className="sb-num">{hDisp}{d.h !== 0 && <span className={"sb-delta " + (d.h > 0 ? "up" : "down")}>{d.h > 0 ? "+" : ""}{d.h}</span>}</div>
-        <div className="sb-season">sezona: {totalsH}</div>
+        <div className="sb-season">podpisani {rosterH}/10</div>
       </div>
       <div className="sb-mid">
         <div className="sb-lbl">PROJEKCIJA RUNDE</div>
@@ -653,7 +660,7 @@ function Scoreboard({ h, a, totalsH, totalsA }) {
       <div className="sb-side">
         <div className="sb-team">AI GM</div>
         <div className="sb-num">{aDisp}{d.a !== 0 && <span className={"sb-delta " + (d.a > 0 ? "up" : "down")}>{d.a > 0 ? "+" : ""}{d.a}</span>}</div>
-        <div className="sb-season">sezona: {totalsA}</div>
+        <div className="sb-season">podpisani {rosterA}/10</div>
       </div>
     </div>
   );
@@ -666,15 +673,16 @@ function CapMeter({ salary, cap = CAP }) {
   const apronPct = ((cap + APRON) / max) * 100;
   const over = salary > cap;
   const deep = salary > cap + APRON;
+  const curCol = deep ? "#8f1d12" : over ? "#152744" : "#2E7D32";
+  const sep = { color: "#b0a288", fontWeight: 500 };
   return (
     <div className="capm">
-      <div className="capm-lbl"><span>Plačna masa</span><span className={over ? "red" : "green"}>{salary} / {cap} M$ {over ? `→ davek ${taxFor(salary, cap)}${deep ? " (apron!)" : " (mehki davek)"}` : "✓ pod limitom"}</span></div>
+      <div className="capm-lbl"><span>Plačna masa</span><span title={`limit ${cap} M$ (nad njim −1/M) · apron ${cap + APRON} M$ (nad njim −2/M)`}><b style={{ color: curCol }}>{salary}</b><span style={sep}> / </span><span style={{ color: "#152744" }}>{cap}</span><span style={sep}> / </span><span style={{ color: "#8f1d12" }}>{cap + APRON}</span><span style={{ ...sep, color: "#8a7c63" }}> M$</span></span></div>
       <div className="capm-bar">
         <div className="capm-fill" style={{ width: pct + "%", background: deep ? "#8f1d12" : over ? "#D97706" : "#2E7D32" }} />
         <div className="capm-cap" style={{ left: capPct + "%" }} />
         <div className="capm-cap apron" style={{ left: apronPct + "%" }} />
       </div>
-      <div className="capm-zones"><span>pod limitom −0/M</span><span>mehki davek −1/M</span><span>apron −2/M</span></div>
     </div>
   );
 }
@@ -808,6 +816,7 @@ export default function App() {
   const [draftOpen, setDraftOpen] = useState(false); // modal deske prospektov
   const [aiOpen, setAiOpen] = useState(false); // razširjena AI ploščica
   const [logOpen, setLogOpen] = useState(false); // razširjen dnevnik (privzeto ticker)
+  const [discOpen, setDiscOpen] = useState(false); // tvoj odpad — privzeto skrčen (večinoma te ne zanima)
   const [help, setHelp] = useState(null); // ⓘ pomoč za panel: 'kupi' | 'roster' | 'roka'
   const [signOpts, setSignOpts] = useState(null); // izbira ob podpisu: redna cena ali s pickom
   const [offInfo, setOffInfo] = useState(null); // ogled karte v prestopnem roku
@@ -1319,7 +1328,8 @@ export default function App() {
       .card-club { font-size:12px; color:#8a7c63; }
       .trait { font-size:12px; font-weight:700; color:#4a4232; background:#f2e9d4; border-radius:5px; padding:1px 5px; margin-top:3px; display:inline-block; }
       .career { font-size:10.5px; font-weight:800; letter-spacing:.4px; margin-top:2px; }
-      .vals { font-size:11.5px; color:#215c26; background:#e7f3e7; border-radius:5px; padding:1px 5px; margin-top:3px; font-weight:700; }
+      .vals { font-size:11.5px; color:#215c26; background:#e7f3e7; border-radius:5px; padding:1px 5px; margin-top:3px; font-weight:700; display:flex; flex-wrap:wrap; column-gap:9px; }
+      .val-chip { white-space:nowrap; }
       .sal { font-weight:700; color:#8a6d1a; font-size:13px; }
       .oldsal { text-decoration:line-through; color:#b3a37e; font-weight:600; font-size:11px; }
       .pot { font-size:11px; font-weight:700; margin-top:2px; }
@@ -1424,7 +1434,6 @@ export default function App() {
       .capm-fill { height:100%; transition:width .3s; }
       .capm-cap { position:absolute; top:-2px; bottom:-2px; width:3px; background:#152744; }
       .capm-cap.apron { background:#8f1d12; }
-      .capm-zones { display:flex; justify-content:space-between; font-size:11px; color:#8a7c63; margin-top:2px; }
       .red { color:#C0392B; } .green { color:#2E7D32; }
       .chips { display:flex; flex-wrap:wrap; gap:5px; margin-top:8px; }
       .chip { background:#e7f3e7; color:#215c26; border-radius:12px; padding:3px 10px; font-size:12px; font-weight:700; border:1px solid #c7e0c7; cursor:pointer; font-family:inherit; transition:transform .1s, box-shadow .1s; }
@@ -1680,15 +1689,20 @@ export default function App() {
             <div className="lbl">Potekle pogodbe — tvoja odločitev ({hExp.length})</div>
             {hExp.length === 0 && <div style={{ fontSize: 13, color: "#8a7c63" }}>Nobena pogodba ni potekla to sezono.</div>}
             <div className="tr-col">
-              {hExp.map((c) => (
+              {hExp.map((c) => {
+                const bigJump = resignSal(c) >= c.sal * 2 && resignSal(c) - c.sal >= 8; // ugodna pogodba potekla → tržna cena
+                return (
                 <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <PlayerCard c={c} mini onClick={() => setOffInfo(c)} />
-                  <div style={{ flex: 1, display: "flex", gap: 4 }}>
-                    <button className={"abtn " + (decisions[c.id] ? "sign" : "ghost")} style={{ flex: 1 }} onClick={() => setOffseason({ ...offseason, decisions: { ...decisions, [c.id]: true } })}>Podaljšaj<br /><small>{c.sal} → {resignSal(c)} M$</small></button>
-                    <button className={"abtn " + (!decisions[c.id] ? "drop" : "ghost")} style={{ flex: 1 }} onClick={() => setOffseason({ ...offseason, decisions: { ...decisions, [c.id]: false } })}>Pusti<br /><small>oditi</small></button>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    {bigJump && <div style={{ fontSize: 11.5, fontWeight: 700, color: "#9a6a13", marginBottom: 4 }}>🔓 Ugodna pogodba je potekla — za OVR {c.ovr} zahteva tržno ceno. Podaljšaj ali izgubi.</div>}
+                    <div style={{ display: "flex", gap: 4 }}>
+                      <button className={"abtn " + (decisions[c.id] ? "sign" : "ghost")} style={{ flex: 1 }} onClick={() => setOffseason({ ...offseason, decisions: { ...decisions, [c.id]: true } })}>Podaljšaj<br /><small>{c.sal} → {resignSal(c)} M$</small></button>
+                      <button className={"abtn " + (!decisions[c.id] ? "drop" : "ghost")} style={{ flex: 1 }} onClick={() => setOffseason({ ...offseason, decisions: { ...decisions, [c.id]: false } })}>Pusti<br /><small>oditi</small></button>
+                    </div>
                   </div>
                 </div>
-              ))}
+              );})}
             </div>
           </div>
           <div className="panel">
@@ -1796,7 +1810,7 @@ export default function App() {
           </div>
         )}
 
-        <Scoreboard h={proj.total} a={aiProj.total} totalsH={g.totals.h} totalsA={g.totals.a} />
+        <Scoreboard h={proj.total} a={aiProj.total} rosterH={g.h.roster.length} rosterA={g.a.roster.length} />
 
         {/* AI — zložena ploščica, tap razširi */}
         <div className="panel">
@@ -1813,11 +1827,26 @@ export default function App() {
               <Picks p={g.a.picks} />
             </div>
             {g.a.roster.length > 0 && <CapMeter salary={effSalary(g.a.roster, g.a.coach)} cap={capNow} />}
-            {g.a.roster.length > 0 && <div className="hint" style={{ margin: "6px 0 4px" }}>★ = AI-jeva prva peterka. {(() => { const miss = POS.filter((p) => !aiProj.starters[p]); return miss.length ? `Manjkajo pozicije: ${miss.join(", ")} (−${miss.length * 10}).` : "Vseh 5 pozicij pokritih."; })()}</div>}
-            <div className="roster-grid" style={{ marginTop: 6 }}>
-              {g.a.roster.map((c) => <PlayerCard key={c.id} c={c} mini starter={aiProj.starters[c.pos] && aiProj.starters[c.pos].id === c.id && g.injured.a !== c.id} injured={g.injured.a === c.id} onClick={() => setInspect({ card: c, side: "a" })} />)}
-              {g.a.roster.length === 0 && <span style={{ fontSize: 13, color: "#8a7c63" }}>Še brez podpisov.</span>}
-            </div>
+            {g.a.roster.length > 0 ? (() => {
+              const aStarterIds = new Set(POS.map((p) => aiProj.starters[p] && aiProj.starters[p].id).filter((id) => id != null));
+              const aBench = g.a.roster.filter((c) => !aStarterIds.has(c.id));
+              return <>
+                <div className="lbl" style={{ margin: "10px 0 4px" }}>★ Prva peterka</div>
+                <div className="roster-grid">
+                  {POS.map((p) => {
+                    const st = aiProj.starters[p] ? g.a.roster.find((c) => c.id === aiProj.starters[p].id) : null;
+                    return st
+                      ? <PlayerCard key={p} c={st} mini starter={g.injured.a !== st.id} injured={g.injured.a === st.id} onClick={() => setInspect({ card: st, side: "a" })} />
+                      : <div key={p} className="slot-empty need" style={{ borderColor: POS_COLOR[p], color: POS_COLOR[p] }}><PosBadge p={p} sm /><span>manjka</span></div>;
+                  })}
+                </div>
+                <div className="lbl" style={{ margin: "10px 0 4px" }}>Klop</div>
+                <div className="roster-grid">
+                  {aBench.map((c) => <PlayerCard key={c.id} c={c} mini injured={g.injured.a === c.id} onClick={() => setInspect({ card: c, side: "a" })} />)}
+                  {Array.from({ length: Math.max(0, 5 - aBench.length) }).map((_, i) => <div key={i} className="slot-empty">prosto</div>)}
+                </div>
+              </>;
+            })() : <div className="roster-grid" style={{ marginTop: 6 }}><span style={{ fontSize: 13, color: "#8a7c63" }}>Še brez podpisov.</span></div>}
           </>}
         </div>
 
@@ -1840,10 +1869,15 @@ export default function App() {
           </div>
           {g.hDisc.length > 0 && (
             <div style={{ marginTop: 10 }}>
-              <div className="pile-cap">Tvoj odpad <span className="pile-n">{g.hDisc.length}</span> <span className="pile-sub">· AI lahko pobere</span></div>
-              <div className="fa-row">
-                {g.hDisc.slice(-8).map((c) => <PlayerCard key={c.id} c={c} dim onClick={() => {}} />)}
-              </div>
+              <button className="ai-tile" onClick={() => setDiscOpen(!discOpen)}>
+                <div className="pile-cap" style={{ margin: 0 }}>Tvoj odpad <span className="pile-n">{g.hDisc.length}</span> <span className="pile-sub">· AI lahko pobere</span></div>
+                <span className="chev">{discOpen ? "▲ skrij" : "▼ poglej"}</span>
+              </button>
+              {discOpen && (
+                <div className="fa-row" style={{ marginTop: 6 }}>
+                  {g.hDisc.slice(-8).map((c) => <PlayerCard key={c.id} c={c} dim onClick={() => {}} />)}
+                </div>
+              )}
             </div>
           )}
           <div className="mrow" style={{ marginTop: 10 }}>
