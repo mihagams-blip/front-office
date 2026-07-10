@@ -475,78 +475,327 @@ function freshSeason(season, opts) {
 // Dogodek = podatki: req (pogoj), text, choices → resolve vrne { fx: [učinki], txt }.
 // Učinki gredo skozi EN tolmač (applyEventFx): pm / ovr / trait / calm / remove / pick / injury / contract / freeAgent.
 const EVENTS = [
+  // ===== EGO / GARDEROBA =====
   { id: "podcast", weight: 3, req: (c) => c.unhappyStar,
-    text: (c) => `📱 ${c.unhappyStar.n} je v podcastu namignil, da se vidi »v drugem sistemu«. Mediji norijo, garderoba šepeta.`,
+    text: (c) => `📱 ${c.unhappyStar.n} je v podcastu namignil, da se vidi »v drugem sistemu«. Garderoba šepeta.`,
     choices: [
-      { label: "Zasebno kosilo in iskren pogovor", sub: "varno · vpliv +1", resolve: (c) => ({ fx: [{ t: "pm", who: c.unhappyStar, d: 1 }], txt: `Pogovor pomaga. ${surname(c.unhappyStar.n)} se umiri (vpliv +1).` }) },
-      { label: "Javno: »NI na prodaj!«", sub: "tvegano · pomiri ali užali", resolve: (c) => Math.random() < 0.5 ? { fx: [{ t: "calm", who: c.unhappyStar }], txt: `Gesta ga gane — ${surname(c.unhappyStar.n)} je spet zadovoljen!` } : { fx: [{ t: "pm", who: c.unhappyStar, d: -2 }], txt: `Misli, da blefiraš. Vpliv −2.` } },
-      { label: "Prodaj ga takoj", sub: "odide · dobiš 2×🥇 v novi sezoni", resolve: (c) => ({ fx: [{ t: "remove", who: c.unhappyStar }, { t: "pick", f: 2 }], txt: `${surname(c.unhappyStar.n)} odide. V novi sezoni dobiš 2×🥇.` }) },
+      { label: "Zasebno kosilo, iskren pogovor", resolve: (c) => ({ fx: [{ t: "pm", who: c.unhappyStar, d: 1 }], txt: `Pogovor pomaga. ${surname(c.unhappyStar.n)} vpliv +1.` }) },
+      { label: "Javno: »Ni na prodaj!«", resolve: (c) => Math.random() < 0.5 ? { fx: [{ t: "calm", who: c.unhappyStar }], txt: `Gesta ga gane — spet je zadovoljen!` } : { fx: [{ t: "pm", who: c.unhappyStar, d: -2 }], txt: `Misli, da blefiraš. Vpliv −2.` } },
+      { label: "Zamenjaj ga, dokler je vroč", resolve: (c) => ({ fx: [{ t: "remove", who: c.unhappyStar }, { t: "pick", f: 2 }], txt: `${surname(c.unhappyStar.n)} odide. +2×🥇 v novi sezoni.` }) },
     ] },
-  { id: "preboj", weight: 3, req: (c) => c.rook,
-    text: (c) => `☀️ ${c.rook.n} je v poletni ligi videti fantastično. Njegov agent sprašuje o »pospešenem razvoju«.`,
+  { id: "rivalstvo", weight: 2, req: (c) => c.two && c.star,
+    text: (c) => `🥊 ${c.star.n} in ${(c.any2 && c.any2.id !== c.star.id ? c.any2 : c.any).n} sta se sprla na treningu. Ekipa izbira strani.`,
     choices: [
-      { label: "Standardni program", sub: "varno · OVR +1", resolve: (c) => ({ fx: [{ t: "ovr", who: c.rook, d: 1 }], txt: `Solidno poletje. ${surname(c.rook.n)} OVR +1.` }) },
-      { label: "Plačaj elitnega trenerja", sub: "tvegano · +3 ali pregorel", resolve: (c) => Math.random() < 0.7 ? { fx: [{ t: "ovr", who: c.rook, d: 3 }], txt: `Preskok! ${surname(c.rook.n)} OVR +3.` } : { fx: [{ t: "pm", who: c.rook, d: -1 }], txt: `Pregorel. Vpliv −1, OVR nespremenjen.` } },
+      { label: "Skupna večerja, zakoplji sekiro", resolve: (c) => ({ fx: [{ t: "pm", who: c.star, d: 1 }], txt: `Pomirjeno. ${surname(c.star.n)} vpliv +1.` }) },
+      { label: "Postavi jasno hierarhijo (alfa je alfa)", resolve: (c) => Math.random() < 0.5 ? { fx: [{ t: "pm", who: c.star, d: 2 }], txt: `${surname(c.star.n)} zacveti v vlogi vodje. Vpliv +2.` } : { fx: [{ t: "pm", who: c.star, d: -1 }, { t: "pm", who: c.any, d: -1 }], txt: `Oba užaljena. Oba vpliv −1.` } },
+      { label: "Pusti ju, naj se ohladita", resolve: (c) => Math.random() < 0.6 ? { fx: [], txt: `Minilo je samo od sebe.` } : { fx: [{ t: "pm", who: c.star, d: -1 }], txt: `Napetost ostaja. ${surname(c.star.n)} vpliv −1.` } },
+    ] },
+  { id: "kapetan", weight: 2, req: (c) => c.roster.length >= 5,
+    text: () => `🅲 Garderoba nima jasnega vodje. Kdo dobi kapetanski trak?`,
+    choices: [
+      { label: "Najstarejši veteran", req: (c) => c.vet, resolve: (c) => ({ fx: [{ t: "trait", who: c.vet, to: "VD" }, { t: "pm", who: c.vet, d: 1 }], txt: `${surname(c.vet.n)} postane 🧭 vodja (+vpliv 1).` }) },
+      { label: "Najboljši igralec", req: (c) => c.big, resolve: (c) => Math.random() < 0.6 ? { fx: [{ t: "pm", who: c.big, d: 1 }], txt: `${surname(c.big.n)} sprejme odgovornost. Vpliv +1.` } : { fx: [{ t: "pm", who: c.big, d: -1 }], txt: `Breme ga bremeni. Vpliv −1.` } },
+      { label: "Nihče — vodite skupinsko", resolve: (c) => Math.random() < 0.5 ? { fx: [{ t: "pm", who: c.any, d: 1 }], txt: `Enakost dvigne moralo. ${surname(c.any.n)} vpliv +1.` } : { fx: [], txt: `Brez vodje, a tudi brez drame.` } },
+    ] },
+  { id: "instagram", weight: 2, req: (c) => c.young || c.rook,
+    text: (c) => { const t = c.young || c.rook; return `📸 ${t.n} živi bolj na Instagramu kot v telovadnici. Sledilci rastejo, met pada.`; },
+    choices: [
+      { label: "Prepovej telefon v garderobi", resolve: (c) => { const t = c.young || c.rook; return Math.random() < 0.6 ? { fx: [{ t: "ovr", who: t, d: 1 }], txt: `Fokus se vrne. ${surname(t.n)} OVR +1.` } : { fx: [{ t: "pm", who: t, d: -1 }], txt: `Uporništvo. Vpliv −1.` }; } },
+      { label: "Izkoristi slavo za sponzorje", resolve: () => ({ fx: [{ t: "pick", s: 1 }], txt: `Klub zasluži na njegovi znamki. +1×🥈.` }) },
+      { label: "Pusti mladost mladosti", resolve: (c) => { const t = c.young || c.rook; return { fx: [{ t: "pm", who: t, d: 1 }], txt: `Ceni zaupanje. ${surname(t.n)} vpliv +1.` }; } },
+    ] },
+  { id: "tehnicna", weight: 2, req: (c) => c.star,
+    text: (c) => `🤬 ${c.star.n} je v zadnji tekmi dobil dve tehnični in ligaška kazen visi.`,
+    choices: [
+      { label: "Plačaj kazen, brani ga", resolve: (c) => ({ fx: [{ t: "pm", who: c.star, d: 1 }], txt: `Čuti podporo. ${surname(c.star.n)} vpliv +1.` }) },
+      { label: "Interna kazen — zgled za mlade", resolve: (c) => Math.random() < 0.5 ? { fx: [{ t: "pm", who: c.star, d: -1 }, { t: "pm", who: (c.young || c.any), d: 1 }], txt: `${surname(c.star.n)} vpliv −1, mladi cenijo disciplino.` } : { fx: [{ t: "pm", who: c.star, d: -2 }], txt: `Zvezdnik zameri. Vpliv −2.` } },
+      { label: "Pošlji ga k psihologu za obvladovanje jeze", resolve: (c) => ({ fx: [{ t: "pm", who: c.star, d: 2 }], txt: `Dela na sebi. ${surname(c.star.n)} vpliv +2.` }) },
+    ] },
+
+  // ===== ROOKIEJI / MLADI =====
+  { id: "preboj", weight: 3, req: (c) => c.rook,
+    text: (c) => `☀️ ${c.rook.n} je v poletni ligi fantastičen. Agent sprašuje o »pospešenem razvoju«.`,
+    choices: [
+      { label: "Standardni program", resolve: (c) => ({ fx: [{ t: "ovr", who: c.rook, d: 1 }], txt: `Solidno. ${surname(c.rook.n)} OVR +1.` }) },
+      { label: "Elitni zasebni trener", resolve: (c) => Math.random() < 0.7 ? { fx: [{ t: "ovr", who: c.rook, d: 3 }], txt: `Preskok! ${surname(c.rook.n)} OVR +3.` } : { fx: [{ t: "pm", who: c.rook, d: -1 }], txt: `Pregorel. Vpliv −1.` } },
+      { label: "Pošlji ga v tujino nabirat izkušnje", resolve: (c) => Math.random() < 0.5 ? { fx: [{ t: "ovr", who: c.rook, d: 2 }, { t: "trait", who: c.rook, to: "OR" }], txt: `Vrne se kot 🧠 organizator (+OVR 2)!` } : { fx: [{ t: "ovr", who: c.rook, d: 1 }], txt: `Kaljenje. OVR +1.` } },
     ] },
   { id: "zid", weight: 2, req: (c) => c.rook && c.rook.developed,
-    text: (c) => `🧱 ${c.rook.n} je zadel »rookie zid« — telo ne dohaja glave. Štab je razdeljen.`,
+    text: (c) => `🧱 ${c.rook.n} je zadel »rookie zid« — telo ne dohaja glave.`,
     choices: [
-      { label: "Daj mu počitka", sub: "varno", resolve: (c) => ({ fx: [], txt: `Spočit se vrne. Brez posledic.` }) },
-      { label: "Porini ga čez zid", sub: "tvegano · +2 OVR ali poškodba", resolve: (c) => Math.random() < 0.5 ? { fx: [{ t: "ovr", who: c.rook, d: 2 }], txt: `Prebil se je! OVR +2.` } : { fx: [{ t: "injury", who: c.rook }], txt: `Telo popusti — ${surname(c.rook.n)} začne novo sezono poškodovan.` } },
+      { label: "Daj mu počitka", resolve: (c) => ({ fx: [{ t: "pm", who: c.rook, d: 1 }], txt: `Spočit se vrne. ${surname(c.rook.n)} vpliv +1.` }) },
+      { label: "Porini ga čez zid", resolve: (c) => Math.random() < 0.5 ? { fx: [{ t: "ovr", who: c.rook, d: 2 }], txt: `Prebil se je! OVR +2.` } : { fx: [{ t: "injury", who: c.rook }], txt: `Telo popusti — ${surname(c.rook.n)} začne sezono poškodovan.` } },
+      { label: "Individualni kondicijski načrt", resolve: (c) => ({ fx: [{ t: "ovr", who: c.rook, d: 1 }, { t: "pm", who: c.rook, d: 1 }], txt: `${surname(c.rook.n)} OVR +1, vpliv +1.` }) },
     ] },
-  { id: "thibs", weight: 2, req: (c) => c.coach === "thibs" && c.star,
-    text: (c) => `⏱️ Thibodeau ${c.star.n} tudi poleti ne pusti dihati — »minute gradijo može«. Igralec je za, zdravniki niso.`,
+  { id: "sofomor", weight: 2, req: (c) => c.young,
+    text: (c) => `📉 ${c.young.n} je zapadel v »drugoletni sindrom« — nasprotniki so ga razvozlali.`,
     choices: [
-      { label: "Zaupaj procesu", sub: "tvegano · vpliv +2 ali poškodba", resolve: (c) => Math.random() < 0.6 ? { fx: [{ t: "pm", who: c.star, d: 2 }], txt: `Jekleno pripravljen. Vpliv +2.` } : { fx: [{ t: "injury", who: c.star }], txt: `Preveč. ${surname(c.star.n)} začne sezono poškodovan.` } },
-      { label: "Omeji mu minute", sub: "varno", resolve: () => ({ fx: [], txt: `Thibs godrnja, a uboga. Brez posledic.` }) },
+      { label: "Nova vloga: čisti strelec", resolve: (c) => ({ fx: [{ t: "trait", who: c.young, to: "SN" }], txt: `${surname(c.young.n)} postane 🎯 strelec.` }) },
+      { label: "Video-seje in trdo delo", resolve: (c) => Math.random() < 0.6 ? { fx: [{ t: "ovr", who: c.young, d: 2 }], txt: `Odgovoril je. OVR +2.` } : { fx: [{ t: "ovr", who: c.young, d: -1 }], txt: `Ne najde poti. OVR −1.` } },
+      { label: "Zmanjšaj pritisk, vzemi ga iz peterke", resolve: (c) => ({ fx: [{ t: "pm", who: c.young, d: 2 }], txt: `Sprosti se. ${surname(c.young.n)} vpliv +2.` }) },
+    ] },
+  { id: "ljubljenec", weight: 2, req: (c) => c.rook,
+    text: (c) => `❤️ ${c.rook.n} je postal ljubljenec mesta. Pritisk pričakovanj raste.`,
+    choices: [
+      { label: "Ščiti ga pred mediji", resolve: (c) => ({ fx: [{ t: "pm", who: c.rook, d: 1 }], txt: `Hvaležen za zaslon. ${surname(c.rook.n)} vpliv +1.` }) },
+      { label: "Postavi ga v ospredje kampanje", resolve: (c) => Math.random() < 0.5 ? { fx: [{ t: "pick", s: 1 }, { t: "pm", who: c.rook, d: 1 }], txt: `Uspeh! +1×🥈, ${surname(c.rook.n)} vpliv +1.` } : { fx: [{ t: "pm", who: c.rook, d: -1 }], txt: `Preveč, prehitro. Vpliv −1.` } },
+      { label: "Nauči ga skromnosti od veterana", req: (c) => c.vet, resolve: (c) => ({ fx: [{ t: "ovr", who: c.rook, d: 1 }, { t: "pm", who: c.vet, d: 1 }], txt: `${surname(c.rook.n)} OVR +1, ${surname(c.vet.n)} vpliv +1.` }) },
+    ] },
+
+  // ===== COACH SPECIFIČNI =====
+  { id: "thibs", weight: 2, req: (c) => c.coach === "thibs" && c.star,
+    text: (c) => `⏱️ Thibodeau ${c.star.n} tudi poleti ne pusti dihati — »minute gradijo može«.`,
+    choices: [
+      { label: "Zaupaj procesu", resolve: (c) => Math.random() < 0.6 ? { fx: [{ t: "pm", who: c.star, d: 2 }], txt: `Jekleno pripravljen. Vpliv +2.` } : { fx: [{ t: "injury", who: c.star }], txt: `Preveč. ${surname(c.star.n)} začne sezono poškodovan.` } },
+      { label: "Omeji mu minute", resolve: () => ({ fx: [], txt: `Thibs godrnja, a uboga. Brez posledic.` }) },
+      { label: "Kompromis: nadzorovan program", resolve: (c) => ({ fx: [{ t: "ovr", who: c.star, d: 1 }], txt: `${surname(c.star.n)} OVR +1, brez tveganja.` }) },
     ] },
   { id: "jjkamp", weight: 2, req: (c) => c.coach === "jj" && (c.young || c.rook),
-    text: (c) => { const t = c.young || c.rook; return `🎬 Redick organizira filmski razvojni kamp. ${t.n} gleda posnetke do 2h zjutraj.`; },
+    text: (c) => { const t = c.young || c.rook; return `🎬 Redick pripravi filmski kamp. ${t.n} gleda posnetke do 2h zjutraj.`; },
     choices: [
-      { label: "Pusti ga garati", sub: "OVR +2", resolve: (c) => { const t = c.young || c.rook; return { fx: [{ t: "ovr", who: t, d: 2 }], txt: `${surname(t.n)} OVR +2. JJ je ponosen.` }; } },
-      { label: "Povabi še veterana za mentorja", sub: "rabi igralca 33+ · oba pridobita", req: (c) => c.vet, resolve: (c) => { const t = c.young || c.rook; return { fx: [{ t: "ovr", who: t, d: 1 }, { t: "pm", who: c.vet, d: 1 }], txt: `${surname(t.n)} OVR +1, ${surname(c.vet.n)} vpliv +1.` }; } },
+      { label: "Pusti ga garati", resolve: (c) => { const t = c.young || c.rook; return { fx: [{ t: "ovr", who: t, d: 2 }], txt: `${surname(t.n)} OVR +2. JJ ponosen.` }; } },
+      { label: "Povabi veterana za mentorja", req: (c) => c.vet, resolve: (c) => { const t = c.young || c.rook; return { fx: [{ t: "ovr", who: t, d: 1 }, { t: "pm", who: c.vet, d: 1 }], txt: `${surname(t.n)} OVR +1, ${surname(c.vet.n)} vpliv +1.` }; } },
+      { label: "Cel kamp za vse mlade", resolve: (c) => { const t = c.young || c.rook; return { fx: [{ t: "pm", who: t, d: 2 }], txt: `Ekipni duh. ${surname(t.n)} vpliv +2.` }; } },
     ] },
+  { id: "kerreksp", weight: 2, req: (c) => c.coach === "kerr" && c.shooter,
+    text: (c) => `🧪 Kerr eksperimentira: ${c.shooter.n} kot »point-forward« brez klasične peterke.`,
+    choices: [
+      { label: "Zaupaj mojstru", resolve: (c) => Math.random() < 0.6 ? { fx: [{ t: "trait", who: c.shooter, to: "OR" }, { t: "ovr", who: c.shooter, d: 1 }], txt: `Deluje! ${surname(c.shooter.n)} postane 🧠 organizator (+OVR 1).` } : { fx: [{ t: "pm", who: c.shooter, d: -1 }], txt: `Zmeden v novi vlogi. Vpliv −1.` } },
+      { label: "Ostani pri klasiki", resolve: (c) => ({ fx: [{ t: "ovr", who: c.shooter, d: 1 }], txt: `V znani vlogi cveti. OVR +1.` }) },
+      { label: "Testiraj obe varianti", resolve: (c) => ({ fx: [{ t: "pm", who: c.shooter, d: 1 }], txt: `Vsestranskost raste. Vpliv +1.` }) },
+    ] },
+  { id: "spoculture", weight: 2, req: (c) => c.coach === "spo",
+    text: () => `🔥 »Heat Culture«: Spoelstra hoče brutalen kondicijski test za vse.`,
+    choices: [
+      { label: "Cela ekipa gre skozi ogenj", resolve: (c) => Math.random() < 0.5 ? { fx: [{ t: "ovr", who: c.any, d: 1 }, { t: "pm", who: c.any2, d: 1 }], txt: `Ekipa okrepljena. ${surname(c.any.n)} OVR +1.` } : { fx: [{ t: "injury", who: c.any }], txt: `Preveč za enega — ${surname(c.any.n)} poškodovan na startu.` } },
+      { label: "Le za tiste, ki potrebujejo", req: (c) => c.nonStar, resolve: (c) => ({ fx: [{ t: "ovr", who: c.nonStar, d: 2 }], txt: `${surname(c.nonStar.n)} OVR +2.` }) },
+      { label: "Zavrni — preveč tvegano", resolve: () => ({ fx: [], txt: `Spo ni navdušen, a ekipa je zdrava.` }) },
+    ] },
+  { id: "luestar", weight: 2, req: (c) => c.coach === "lue" && c.big && c.big.ovr >= 90,
+    text: (c) => `🌟 Lue hoče graditi napad okoli ${c.big.n}. Ostali zvezdniki niso navdušeni.`,
+    choices: [
+      { label: "Sledi Lueju — heliocentrizem", resolve: (c) => Math.random() < 0.6 ? { fx: [{ t: "ovr", who: c.big, d: 2 }], txt: `${surname(c.big.n)} eksplodira. OVR +2.` } : { fx: [{ t: "pm", who: c.any, d: -1 }], txt: `Drugi zapostavljeni. ${surname(c.any.n)} vpliv −1.` } },
+      { label: "Uravnotežena delitev žoge", resolve: (c) => ({ fx: [{ t: "pm", who: c.any, d: 1 }], txt: `Vsi vključeni. ${surname(c.any.n)} vpliv +1.` }) },
+      { label: "Vprašaj igralce, kaj hočejo", resolve: (c) => ({ fx: [{ t: "pm", who: c.big, d: 1 }], txt: `Demokracija. ${surname(c.big.n)} vpliv +1.` }) },
+    ] },
+  { id: "coachkonflikt", weight: 2, req: (c) => c.star,
+    text: (c) => `⚡ ${c.star.n} in coach se javno nista strinjala o taktiki.`,
+    choices: [
+      { label: "Stopi na stran coacha", resolve: (c) => Math.random() < 0.5 ? { fx: [{ t: "pm", who: c.star, d: -1 }], txt: `${surname(c.star.n)} zameri. Vpliv −1.` } : { fx: [{ t: "ovr", who: c.star, d: 1 }], txt: `Sprejme lekcijo, raste. OVR +1.` } },
+      { label: "Stopi na stran zvezdnika", resolve: (c) => ({ fx: [{ t: "pm", who: c.star, d: 2 }], txt: `${surname(c.star.n)} počaščen. Vpliv +2.` }) },
+      { label: "Zapri ju v sobo, dokler se ne zmenita", resolve: (c) => ({ fx: [{ t: "pm", who: c.star, d: 1 }], txt: `Dosežen kompromis. Vpliv +1.` }) },
+    ] },
+
+  // ===== VETERANI =====
   { id: "upokoj", weight: 2, req: (c) => c.vet,
-    text: (c) => `🎙️ ${c.vet.n} (${c.vet.age} let) na tiskovki: »Mogoče je to moja zadnja sezona…«`,
+    text: (c) => `🎙️ ${c.vet.n} (${c.vet.age} let): »Mogoče je to moja zadnja sezona…«`,
     choices: [
-      { label: "Napovej poslovilno turnejo", sub: "vpliv +2", resolve: (c) => ({ fx: [{ t: "pm", who: c.vet, d: 2 }], txt: `Liga se poklanja. ${surname(c.vet.n)} vpliv +2.` }) },
-      { label: "Prepričaj ga: »Še eno leto!«", sub: "tvegano · pogodba +1 ali upad", resolve: (c) => Math.random() < 0.5 ? { fx: [{ t: "contract", who: c.vet, d: 1 }, { t: "pm", who: c.vet, d: 1 }], txt: `Ostaja! Pogodba +1 leto, vpliv +1.` } : { fx: [{ t: "ovr", who: c.vet, d: -2 }], txt: `Motivacije ni več. OVR −2.` } },
+      { label: "Napovej poslovilno turnejo", resolve: (c) => ({ fx: [{ t: "pm", who: c.vet, d: 2 }], txt: `Liga se poklanja. ${surname(c.vet.n)} vpliv +2.` }) },
+      { label: "Prepričaj ga: »Še eno leto!«", resolve: (c) => Math.random() < 0.5 ? { fx: [{ t: "contract", who: c.vet, d: 1 }, { t: "pm", who: c.vet, d: 1 }], txt: `Ostaja! Pogodba +1 leto, vpliv +1.` } : { fx: [{ t: "ovr", who: c.vet, d: -2 }], txt: `Motivacije ni. OVR −2.` } },
+      { label: "Ponudi mu vlogo igralca-trenerja", resolve: (c) => ({ fx: [{ t: "trait", who: c.vet, to: "VD" }, { t: "pm", who: c.vet, d: 1 }], txt: `${surname(c.vet.n)} postane 🧭 vodja (+vpliv 1).` }) },
     ] },
-  { id: "gala", weight: 2, req: () => true,
-    text: () => `🥂 Sponzorska gala sezone. Lastnik pričakuje, da se prikažeš — skavti pa javljajo o mladem talentu, ki igra isti večer.`,
+  { id: "operacija", weight: 2, req: (c) => c.vet,
+    text: (c) => `🏥 ${c.vet.n} ima kronično koleno. Zdravniki predlagajo tvegano operacijo.`,
     choices: [
-      { label: "Pojdi na galo", sub: "+1 🥈 v novi sezoni", resolve: () => ({ fx: [{ t: "pick", s: 1 }], txt: `Lastnik je navdušen. +1×🥈 v novi sezoni.` }) },
-      { label: "Pojdi na tekmo", sub: "naključni igralec vpliv +1", resolve: (c) => { const t = c.roster[Math.floor(Math.random() * c.roster.length)]; return t ? { fx: [{ t: "pm", who: t, d: 1 }], txt: `Igralci cenijo, da si »košarkar«. ${surname(t.n)} vpliv +1.` } : { fx: [], txt: "Miren večer." }; } },
+      { label: "Naj gre pod nož", resolve: (c) => Math.random() < 0.5 ? { fx: [{ t: "ovr", who: c.vet, d: 2 }], txt: `Pomlajen! ${surname(c.vet.n)} OVR +2.` } : { fx: [{ t: "injury", who: c.vet }], txt: `Zaplet — začne sezono poškodovan.` } },
+      { label: "Konzervativno zdravljenje", resolve: (c) => ({ fx: [{ t: "pm", who: c.vet, d: -1 }], txt: `Igra skozi bolečino. Vpliv −1, a na parketu.` }) },
+      { label: "Počitek celo predsezono", resolve: (c) => ({ fx: [{ t: "ovr", who: c.vet, d: 1 }], txt: `Spočit. ${surname(c.vet.n)} OVR +1.` }) },
+    ] },
+  { id: "legenda", weight: 1, req: (c) => c.vet && c.vet.ovr >= 88,
+    text: (c) => `🏛️ Klub hoče upokojiti dres ${c.vet.n} — a on še igra zate.`,
+    choices: [
+      { label: "Velika slovesnost sredi sezone", resolve: (c) => ({ fx: [{ t: "pm", who: c.vet, d: 3 }], txt: `Ganjen do solz. ${surname(c.vet.n)} vpliv +3.` }) },
+      { label: "Počakaj do konca kariere", resolve: (c) => ({ fx: [{ t: "contract", who: c.vet, d: 1 }], txt: `Ostaja motiviran — pogodba +1 leto.` }) },
+      { label: "Naj sam odloči", resolve: (c) => ({ fx: [{ t: "pm", who: c.vet, d: 1 }], txt: `Ceni spoštovanje. Vpliv +1.` }) },
+    ] },
+
+  // ===== FRONT OFFICE / MEDIJI =====
+  { id: "gala", weight: 2, req: () => true,
+    text: () => `🥂 Sponzorska gala sezone. Lastnik te pričakuje — skavti pa javljajo o talentu, ki igra isti večer.`,
+    choices: [
+      { label: "Pojdi na galo", resolve: () => ({ fx: [{ t: "pick", s: 1 }], txt: `Lastnik navdušen. +1×🥈 v novi sezoni.` }) },
+      { label: "Pojdi na tekmo skavtirat", resolve: (c) => ({ fx: [{ t: "pm", who: c.any, d: 1 }], txt: `Igralci cenijo, da si »košarkar«. ${surname(c.any.n)} vpliv +1.` }) },
+      { label: "Pošlji pomočnika, ostani v pisarni", resolve: () => Math.random() < 0.5 ? { fx: [{ t: "pick", f: 1 }], txt: `Delo se obrestuje. +1×🥇.` } : { fx: [], txt: `Miren, a neproduktiven večer.` } },
     ] },
   { id: "place", weight: 2, req: (c) => c.overCap && c.star,
-    text: (c) => `📰 Novinar objavi interno plačno listo. ${c.star.n} vidi, koliko zaslužijo drugi. Ni navdušen.`,
+    text: (c) => `📰 Novinar objavi interno plačno listo. ${c.star.n} vidi, koliko zaslužijo drugi.`,
     choices: [
-      { label: "Javno opravičilo + obljuba", sub: "vpliv −1 (obvladano)", resolve: (c) => ({ fx: [{ t: "pm", who: c.star, d: -1 }], txt: `Škoda omejena. ${surname(c.star.n)} vpliv −1.` }) },
-      { label: "Ignoriraj — bo minilo", sub: "tvegano", resolve: (c) => Math.random() < 0.5 ? { fx: [], txt: `Mine. Brez posledic.` } : { fx: [{ t: "pm", who: c.star, d: -2 }], txt: `Ne mine. ${surname(c.star.n)} vpliv −2.` } },
+      { label: "Javno opravičilo in obljuba", resolve: (c) => ({ fx: [{ t: "pm", who: c.star, d: -1 }], txt: `Škoda omejena. ${surname(c.star.n)} vpliv −1.` }) },
+      { label: "Ignoriraj — bo minilo", resolve: (c) => Math.random() < 0.5 ? { fx: [], txt: `Mine. Brez posledic.` } : { fx: [{ t: "pm", who: c.star, d: -2 }], txt: `Ne mine. Vpliv −2.` } },
+      { label: "Obljubi mu podaljšanje po sezoni", resolve: (c) => ({ fx: [{ t: "pm", who: c.star, d: 1 }, { t: "contract", who: c.star, d: 1 }], txt: `Pomirjen. ${surname(c.star.n)} vpliv +1, pogodba +1.` }) },
     ] },
+  { id: "lastnik", weight: 2, req: () => true,
+    text: () => `💼 Lastnik zahteva sestanek: »Hočem rezultate ZDAJ, ne čez tri leta.«`,
+    choices: [
+      { label: "Obljubi zmage, prevzemi pritisk", resolve: (c) => Math.random() < 0.5 ? { fx: [{ t: "pick", f: 1 }], txt: `Odobri sredstva. +1×🥇.` } : { fx: [{ t: "pm", who: c.any, d: -1 }], txt: `Pritisk pade na ekipo. ${surname(c.any.n)} vpliv −1.` } },
+      { label: "Zagovarjaj dolgoročni načrt", resolve: (c) => c.rook ? { fx: [{ t: "ovr", who: c.rook, d: 1 }], txt: `Dobiš čas za razvoj. ${surname(c.rook.n)} OVR +1.` } : { fx: [], txt: `Kupiš si čas. Brez takojšnjih posledic.` } },
+      { label: "Zahtevaj več proračuna zase", resolve: () => ({ fx: [{ t: "pick", s: 1 }], txt: `Izboriš dodaten pick. +1×🥈.` }) },
+    ] },
+  { id: "dokumentarec", weight: 1, req: (c) => c.big,
+    text: (c) => `🎥 Netflix hoče snemati zakulisje. Kamere povsod, tudi v garderobi.`,
+    choices: [
+      { label: "Odpri vrata — izpostavljenost!", resolve: (c) => Math.random() < 0.5 ? { fx: [{ t: "pick", s: 1 }, { t: "pm", who: c.big, d: 1 }], txt: `Zvezdništvo. +1×🥈, ${surname(c.big.n)} vpliv +1.` } : { fx: [{ t: "pm", who: c.any, d: -1 }], txt: `Kamere motijo. ${surname(c.any.n)} vpliv −1.` } },
+      { label: "Le nadzorovan dostop", resolve: () => ({ fx: [{ t: "pick", s: 1 }], txt: `Varno in koristno. +1×🥈.` }) },
+      { label: "Zavrni — zasebnost je svetinja", resolve: (c) => ({ fx: [{ t: "pm", who: c.any, d: 1 }], txt: `Ekipa hvaležna za mir. ${surname(c.any.n)} vpliv +1.` }) },
+    ] },
+  { id: "govorice", weight: 2, req: (c) => c.star,
+    text: (c) => `🔊 Govori se, da rival pripravlja mega ponudbo za ${c.star.n}.`,
+    choices: [
+      { label: "Zavaruj ga s podaljšanjem", resolve: (c) => ({ fx: [{ t: "contract", who: c.star, d: 1 }, { t: "pm", who: c.star, d: 1 }], txt: `Zvest. ${surname(c.star.n)} pogodba +1, vpliv +1.` }) },
+      { label: "Testiraj trg — poslušaj ponudbe", resolve: (c) => Math.random() < 0.4 ? { fx: [{ t: "remove", who: c.star }, { t: "pick", f: 2 }], txt: `Odličen posel! ${surname(c.star.n)} zamenjan za 2×🥇.` } : { fx: [{ t: "pm", who: c.star, d: -1 }], txt: `Izve za pogovore. Vpliv −1.` } },
+      { label: "Utišaj govorice, ostani miren", resolve: () => ({ fx: [], txt: `Nevihta mine. Brez posledic.` }) },
+    ] },
+
+  // ===== ZDRAVJE / KONDICIJA =====
+  { id: "prehrana", weight: 2, req: (c) => c.any,
+    text: (c) => `🥗 Novi kuhar in znanstvena prehrana? Cena je visoka, korist negotova.`,
+    choices: [
+      { label: "Investiraj v vrhunsko prehrano", resolve: (c) => Math.random() < 0.6 ? { fx: [{ t: "ovr", who: c.any, d: 1 }, { t: "pm", who: c.any2, d: 1 }], txt: `Telesa bolje reagirajo. ${surname(c.any.n)} OVR +1.` } : { fx: [], txt: `Draga muha, malo učinka.` } },
+      { label: "Le za ključne igralce", req: (c) => c.big, resolve: (c) => ({ fx: [{ t: "ovr", who: c.big, d: 1 }], txt: `${surname(c.big.n)} OVR +1.` }) },
+      { label: "Denar raje v skavting", resolve: () => ({ fx: [{ t: "pick", s: 1 }], txt: `+1×🥈 v novi sezoni.` }) },
+    ] },
+  { id: "spanje", weight: 1, req: (c) => c.any,
+    text: () => `😴 Študija o spanju priporoča kasnejše treninge in manj potovanj.`,
+    choices: [
+      { label: "Prilagodi urnik znanosti", resolve: (c) => ({ fx: [{ t: "pm", who: c.any, d: 1 }], txt: `Spočita ekipa. ${surname(c.any.n)} vpliv +1.` }) },
+      { label: "Stara šola: jutranji treningi", resolve: (c) => Math.random() < 0.5 ? { fx: [{ t: "ovr", who: c.any, d: 1 }], txt: `Disciplina. OVR +1.` } : { fx: [{ t: "pm", who: c.any, d: -1 }], txt: `Utrujenost. Vpliv −1.` } },
+      { label: "Vsak po svoje", resolve: () => ({ fx: [], txt: `Kaos, a nihče se ne pritožuje.` }) },
+    ] },
+
+  // ===== MET / VLOGE =====
+  { id: "met", weight: 2, req: (c) => c.shooter,
+    text: (c) => `🎯 ${c.shooter.n} je čez poletje izgubil met. Na treningu 3/20 za tri.`,
+    choices: [
+      { label: "Prekvalificiraj v šestega moža", resolve: (c) => ({ fx: [{ t: "trait", who: c.shooter, to: "SM" }, { t: "pm", who: c.shooter, d: 1 }], txt: `${surname(c.shooter.n)} postane 🔥 šesti mož (ni več strelec).` }) },
+      { label: "Vztrajaj pri metu", resolve: (c) => Math.random() < 0.6 ? { fx: [], txt: `Met se vrne. Brez posledic.` } : { fx: [{ t: "ovr", who: c.shooter, d: -2 }], txt: `Kriza se vleče. OVR −2.` } },
+      { label: "Nauči ga braniti namesto tega", resolve: (c) => ({ fx: [{ t: "trait", who: c.shooter, to: "BR" }], txt: `${surname(c.shooter.n)} postane 🛡️ branilec.` }) },
+    ] },
+  { id: "obrambar", weight: 2, req: (c) => c.defender,
+    text: (c) => `🛡️ ${c.defender.n} je čez poletje razvil trojko. Hoče več napadalne svobode.`,
+    choices: [
+      { label: "Naj postane dvosmerni strelec", resolve: (c) => Math.random() < 0.6 ? { fx: [{ t: "trait", who: c.defender, to: "SN" }, { t: "ovr", who: c.defender, d: 1 }], txt: `${surname(c.defender.n)} postane 🎯 strelec (+OVR 1)!` } : { fx: [{ t: "pm", who: c.defender, d: -1 }], txt: `Zanemari obrambo. Vpliv −1.` } },
+      { label: "Ostani obrambni specialist", resolve: (c) => ({ fx: [{ t: "ovr", who: c.defender, d: 1 }], txt: `Zvest svoji vlogi. OVR +1.` }) },
+      { label: "Razvijaj obe plati počasi", resolve: (c) => ({ fx: [{ t: "pm", who: c.defender, d: 1 }], txt: `Vsestranskost. Vpliv +1.` }) },
+    ] },
+  { id: "playmaker", weight: 2, req: (c) => c.playmaker,
+    text: (c) => `🧠 ${c.playmaker.n} preveč tvega s podajami — asistence in izgube rastejo.`,
+    choices: [
+      { label: "Pusti kreativnost", resolve: (c) => Math.random() < 0.6 ? { fx: [{ t: "ovr", who: c.playmaker, d: 1 }], txt: `Genialnost prevlada. OVR +1.` } : { fx: [{ t: "pm", who: c.playmaker, d: -1 }], txt: `Izgube bolijo. Vpliv −1.` } },
+      { label: "Uči ga varnih odločitev", resolve: (c) => ({ fx: [{ t: "pm", who: c.playmaker, d: 1 }], txt: `Zrelost. ${surname(c.playmaker.n)} vpliv +1.` }) },
+      { label: "Daj mu polni ključ napada", resolve: (c) => ({ fx: [{ t: "ovr", who: c.playmaker, d: 1 }, { t: "pm", who: c.playmaker, d: 1 }], txt: `Zaupanje sprosti. OVR +1, vpliv +1.` }) },
+    ] },
+
+  // ===== MENTOR / FREE AGENT =====
   { id: "mentor", weight: 1, req: () => true,
     text: () => `📞 Upokojeni as kliče: »Slišim, da gradite nekaj posebnega. Za minimum pridem pomagat.«`,
     choices: [
-      { label: "Podpiši ga na pogovor", sub: "veteran v tvoji roki nove sezone", resolve: () => ({ fx: [{ t: "freeAgent", range: [78, 83] }], txt: `Pride na priprave — našel ga boš v svoji roki v novi sezoni.` }) },
-      { label: "Vljudno zavrni", sub: "+1 🥈 (njegov agent ceni iskrenost)", resolve: () => ({ fx: [{ t: "pick", s: 1 }], txt: `Razideta se v dobrem. +1×🥈 v novi sezoni.` }) },
+      { label: "Podpiši ga na pripravah", resolve: () => ({ fx: [{ t: "freeAgent", range: [78, 84] }], txt: `Pride — najdeš ga v svoji roki nove sezone.` }) },
+      { label: "Vljudno zavrni", resolve: () => ({ fx: [{ t: "pick", s: 1 }], txt: `Razideta se v dobrem. +1×🥈.` }) },
+      { label: "Zaposli ga kot skavta", resolve: () => ({ fx: [{ t: "pick", f: 1 }], txt: `Njegovo oko za talent. +1×🥇.` }) },
     ] },
-  { id: "met", weight: 2, req: (c) => c.shooter,
-    text: (c) => `🎯 ${c.shooter.n} je čez poletje izgubil met. Na treningu 3/20 za tri. Panika?`,
+  { id: "prijatelj", weight: 1, req: (c) => c.star,
+    text: (c) => `🤝 ${c.star.n} ti šepne: »Moj stari soigralec je še prost. Bi bil odličen za garderobo.«`,
     choices: [
-      { label: "Prekvalificiraj ga v šestega moža", sub: "postane 🔥 šesti mož · vpliv +1", resolve: (c) => ({ fx: [{ t: "trait", who: c.shooter, to: "SM" }, { t: "pm", who: c.shooter, d: 1 }], txt: `${surname(c.shooter.n)} sprejme novo vlogo — zdaj je 🔥 šesti mož (ni več 🎯 strelec!).` }) },
-      { label: "Vztrajaj pri metu", sub: "tvegano · reši se ali OVR −2", resolve: (c) => Math.random() < 0.6 ? { fx: [], txt: `Met se vrne. Brez posledic.` } : { fx: [{ t: "ovr", who: c.shooter, d: -2 }], txt: `Kriza se vleče. OVR −2.` } },
+      { label: "Zaupaj zvezdniku, podpiši ga", resolve: (c) => ({ fx: [{ t: "freeAgent", range: [79, 85] }, { t: "pm", who: c.star, d: 1 }], txt: `${surname(c.star.n)} vesel (+vpliv 1), prijatelj pride v roko.` }) },
+      { label: "Preveri ga najprej", resolve: () => Math.random() < 0.5 ? { fx: [{ t: "freeAgent", range: [80, 86] }], txt: `Preverjen in dober — v tvoji roki.` } : { fx: [], txt: `Ni bil pravi. Nič izgubljenega.` } },
+      { label: "Ne mešaj prijateljstev in posla", resolve: (c) => Math.random() < 0.5 ? { fx: [], txt: `${surname(c.star.n)} razume.` } : { fx: [{ t: "pm", who: c.star, d: -1 }], txt: `Malo užaljen. Vpliv −1.` } },
     ] },
+
+  // ===== KEMIJA / MESTO =====
   { id: "parada", weight: 2, req: (c) => c.won,
     text: () => `🏆 Mesto hoče parado prvakov. Igralci hočejo dopust. Lastnik hoče oboje.`,
     choices: [
-      { label: "Velika parada", sub: "dva igralca vpliv +1", resolve: (c) => { const a = c.roster[0], b = c.roster[1]; const fx = []; if (a) fx.push({ t: "pm", who: a, d: 1 }); if (b) fx.push({ t: "pm", who: b, d: 1 }); return { fx, txt: `Nepozabno. ${[a, b].filter(Boolean).map((x) => surname(x.n)).join(" in ")} vpliv +1.` }; } },
-      { label: "Mirno poletje", sub: "+1 🥈 (skavti delajo)", resolve: () => ({ fx: [{ t: "pick", s: 1 }], txt: `Medtem ko liga slavi, ti skavtiraš. +1×🥈.` }) },
+      { label: "Velika parada", resolve: (c) => ({ fx: [{ t: "pm", who: c.any, d: 1 }, { t: "pm", who: c.any2, d: 1 }], txt: `Nepozabno. Dva igralca vpliv +1.` }) },
+      { label: "Mirno poletje, skavtiraj", resolve: () => ({ fx: [{ t: "pick", s: 1 }], txt: `Medtem ko slavijo, delaš. +1×🥈.` }) },
+      { label: "Kratka parada, nato počitek", resolve: (c) => ({ fx: [{ t: "ovr", who: c.any, d: 1 }], txt: `Ravnovesje. ${surname(c.any.n)} OVR +1.` }) },
     ] },
   { id: "aspen", weight: 2, req: (c) => c.lost,
     text: () => `🏔️ Po izgubljeni sezoni garderoba potrebuje reset. Kapetani predlagajo team-building v Aspnu.`,
     choices: [
-      { label: "Plačaj Aspen", sub: "naključni igralec vpliv +1, nezadovoljni se umiri", resolve: (c) => { const t = c.roster[Math.floor(Math.random() * c.roster.length)]; const fx = t ? [{ t: "pm", who: t, d: 1 }] : []; if (c.unhappyStar) fx.push({ t: "calm", who: c.unhappyStar }); return { fx, txt: `Zrak očiščen.${t ? ` ${surname(t.n)} vpliv +1.` : ""}${c.unhappyStar ? ` ${surname(c.unhappyStar.n)} spet zadovoljen.` : ""}` }; } },
-      { label: "Treningi 2× na dan", sub: "tvegano · OVR +1 ali slaba volja", resolve: (c) => { const t = c.roster[Math.floor(Math.random() * c.roster.length)]; if (!t) return { fx: [], txt: "Prazna telovadnica." }; return Math.random() < 0.5 ? { fx: [{ t: "ovr", who: t, d: 1 }], txt: `Garanje se obrestuje. ${surname(t.n)} OVR +1.` } : { fx: [{ t: "pm", who: t, d: -1 }], txt: `Preveč palice, premalo korenčka. ${surname(t.n)} vpliv −1.` }; } },
+      { label: "Plačaj Aspen", resolve: (c) => { const fx = [{ t: "pm", who: c.any, d: 1 }]; if (c.unhappyStar) fx.push({ t: "calm", who: c.unhappyStar }); return { fx, txt: `Zrak očiščen. ${surname(c.any.n)} vpliv +1.${c.unhappyStar ? ` ${surname(c.unhappyStar.n)} pomirjen.` : ""}` }; } },
+      { label: "Treningi 2× na dan", resolve: (c) => Math.random() < 0.5 ? { fx: [{ t: "ovr", who: c.any, d: 1 }], txt: `Garanje se obrestuje. OVR +1.` } : { fx: [{ t: "pm", who: c.any, d: -1 }], txt: `Preveč palice. Vpliv −1.` } },
+      { label: "Skupinska terapija in analiza", resolve: (c) => ({ fx: [{ t: "pm", who: c.any, d: 1 }, { t: "pm", who: c.any2, d: 1 }], txt: `Iskrenost poveže. Dva vpliv +1.` }) },
+    ] },
+  { id: "navijaci", weight: 1, req: (c) => c.nonStar,
+    text: (c) => `📣 Navijači na tribunah žvižgajo ${c.nonStar.n} po slabi predstavi.`,
+    choices: [
+      { label: "Javno ga podpri", resolve: (c) => ({ fx: [{ t: "pm", who: c.nonStar, d: 2 }], txt: `${surname(c.nonStar.n)} hvaležen. Vpliv +2.` }) },
+      { label: "Uporabi kot motivacijo", resolve: (c) => Math.random() < 0.5 ? { fx: [{ t: "ovr", who: c.nonStar, d: 1 }], txt: `Dokaže jim. OVR +1.` } : { fx: [{ t: "pm", who: c.nonStar, d: -1 }], txt: `Zlomi ga. Vpliv −1.` } },
+      { label: "Organiziraj dogodek z navijači", resolve: (c) => ({ fx: [{ t: "pm", who: c.nonStar, d: 1 }], txt: `Most zgrajen. Vpliv +1.` }) },
+    ] },
+  { id: "dobrodelnost", weight: 1, req: (c) => c.any,
+    text: (c) => `❤️ ${c.any.n} vodi dobrodelno akcijo v skupnosti. Vzame čas, a dviga duha.`,
+    choices: [
+      { label: "Polna klubska podpora", resolve: (c) => ({ fx: [{ t: "pm", who: c.any, d: 2 }], txt: `${surname(c.any.n)} navdihnjen. Vpliv +2.` }) },
+      { label: "Vključi celo ekipo", resolve: (c) => ({ fx: [{ t: "pm", who: c.any, d: 1 }, { t: "pm", who: c.any2, d: 1 }], txt: `Skupno poslanstvo. Dva vpliv +1.` }) },
+      { label: "Naj ostane osebni projekt", resolve: () => ({ fx: [{ t: "pick", s: 1 }], txt: `Dober PR za klub. +1×🥈.` }) },
+    ] },
+
+  // ===== SREČA / NAKLJUČJE =====
+  { id: "loterija", weight: 1, req: () => true,
+    text: () => `🎰 Nepričakovana kompenzacija zaradi lanske napake lige — dobiš bonus izbor.`,
+    choices: [
+      { label: "Vzemi zgodnji pick", resolve: () => ({ fx: [{ t: "pick", f: 1 }], txt: `+1×🥇 v novi sezoni.` }) },
+      { label: "Vzemi dva pozna", resolve: () => ({ fx: [{ t: "pick", s: 2 }], txt: `+2×🥈 v novi sezoni.` }) },
+      { label: "Zamenjaj za razvojni denar", resolve: (c) => c.rook ? { fx: [{ t: "ovr", who: c.rook, d: 2 }], txt: `${surname(c.rook.n)} OVR +2.` } : c.young ? { fx: [{ t: "ovr", who: c.young, d: 2 }], txt: `${surname(c.young.n)} OVR +2.` } : { fx: [{ t: "pick", f: 1 }], txt: `Ni mladih — vzameš +1×🥇.` } },
+    ] },
+  { id: "vraza", weight: 1, req: (c) => c.any,
+    text: (c) => `🔮 ${c.any.n} verjame, da mu je nova rutina prinesla srečo. Ekipa je skeptična.`,
+    choices: [
+      { label: "Spodbudi vraževerje", resolve: (c) => Math.random() < 0.6 ? { fx: [{ t: "pm", who: c.any, d: 2 }], txt: `Samozavest raste. ${surname(c.any.n)} vpliv +2.` } : { fx: [], txt: `Nič posebnega.` } },
+      { label: "Prizemlji ga z znanostjo", resolve: (c) => ({ fx: [{ t: "ovr", who: c.any, d: 1 }], txt: `Fokus na resnično delo. OVR +1.` }) },
+      { label: "Naj vsak veruje po svoje", resolve: () => ({ fx: [], txt: `Garderoba ostane raznolika.` }) },
+    ] },
+  { id: "ulica", weight: 1, req: (c) => c.big,
+    text: (c) => `🏀 ${c.big.n} je v ulični ligi razbil lokalne legende. Video postane viralen.`,
+    choices: [
+      { label: "Slavi svobodo igre", resolve: (c) => ({ fx: [{ t: "pm", who: c.big, d: 1 }], txt: `Ljubezen do igre. ${surname(c.big.n)} vpliv +1.` }) },
+      { label: "Opomni ga na tveganje poškodb", resolve: (c) => Math.random() < 0.3 ? { fx: [{ t: "injury", who: c.big }], txt: `Prepozno — ${surname(c.big.n)} se je poškodoval na ulici!` } : { fx: [{ t: "pm", who: c.big, d: -1 }], txt: `Ubere, a je slabe volje. Vpliv −1.` } },
+      { label: "Izkoristi hype za trženje", resolve: () => ({ fx: [{ t: "pick", s: 1 }], txt: `Viralnost prinese sponzorja. +1×🥈.` }) },
+    ] },
+  { id: "novinar", weight: 1, req: () => true,
+    text: () => `📝 Vplivni novinar hoče ekskluzivo o tvoji viziji kluba.`,
+    choices: [
+      { label: "Razkrij velike načrte", resolve: (c) => Math.random() < 0.5 ? { fx: [{ t: "pick", s: 1 }], txt: `Pozitiven odmev. +1×🥈.` } : { fx: [{ t: "pm", who: c.any, d: -1 }], txt: `Igralci nezadovoljni z izjavami. ${surname(c.any.n)} vpliv −1.` } },
+      { label: "Diplomatski, splošni odgovori", resolve: () => ({ fx: [], txt: `Varno in pozabljivo.` }) },
+      { label: "Preusmeri pozornost na igralce", resolve: (c) => ({ fx: [{ t: "pm", who: c.any, d: 1 }], txt: `Igralci cenijo reflektor. ${surname(c.any.n)} vpliv +1.` }) },
+    ] },
+
+  // ===== DODATNI =====
+  { id: "ambicija", weight: 2, req: (c) => c.young || c.nonStar,
+    text: (c) => { const t = c.young || c.nonStar; return `📈 ${t.n} zahteva večjo vlogo — sicer bo »iskal priložnost drugje«.`; },
+    choices: [
+      { label: "Daj mu več minut in svobode", resolve: (c) => { const t = c.young || c.nonStar; return Math.random() < 0.6 ? { fx: [{ t: "ovr", who: t, d: 2 }], txt: `Priložnost zgrabi. ${surname(t.n)} OVR +2.` } : { fx: [{ t: "pm", who: t, d: -1 }], txt: `Ni bil pripravljen. Vpliv −1.` }; } },
+      { label: "Postavi ga na realna tla", resolve: (c) => { const t = c.young || c.nonStar; return { fx: [{ t: "pm", who: t, d: -1 }], txt: `${surname(t.n)} užaljen. Vpliv −1.` }; } },
+      { label: "Obljubi mu jasno pot rasti", resolve: (c) => { const t = c.young || c.nonStar; return { fx: [{ t: "pm", who: t, d: 1 }], txt: `Ceni načrt. ${surname(t.n)} vpliv +1.` }; } },
+    ] },
+  { id: "socialne", weight: 1, req: (c) => c.big,
+    text: (c) => `📲 ${c.big.n} se je na omrežjih zapletel v prepir z zvezdnikom rivala. Liga opozarja.`,
+    choices: [
+      { label: "Pusti tekmovalni ogenj", resolve: (c) => Math.random() < 0.5 ? { fx: [{ t: "pm", who: c.big, d: 2 }], txt: `Motiviran do konca! Vpliv +2.` } : { fx: [{ t: "pm", who: c.big, d: -1 }], txt: `Izgubi fokus. Vpliv −1.` } },
+      { label: "Ukaži medijski molk", resolve: (c) => ({ fx: [{ t: "ovr", who: c.big, d: 1 }], txt: `Kanalizira energijo v igro. OVR +1.` }) },
+      { label: "Obrni v marketinško priložnost", resolve: () => ({ fx: [{ t: "pick", s: 1 }], txt: `Rivalstvo se prodaja. +1×🥈.` }) },
+    ] },
+  { id: "pomocnik", weight: 1, req: () => true,
+    text: () => `👔 Rival hoče tvojega najboljšega pomočnika za glavnega trenerja.`,
+    choices: [
+      { label: "Blagoslovi ga, poberi kompenzacijo", resolve: () => ({ fx: [{ t: "pick", f: 1 }], txt: `Kompenzacijski pick. +1×🥇.` }) },
+      { label: "Zadrži ga z višjo plačo", resolve: (c) => ({ fx: [{ t: "pm", who: c.any, d: 1 }], txt: `Kontinuiteta pomaga. ${surname(c.any.n)} vpliv +1.` }) },
+      { label: "Povišaj mladega pomočnika", resolve: (c) => Math.random() < 0.6 ? { fx: [{ t: "ovr", who: (c.young || c.any), d: 1 }], txt: `Svež pristop. ${surname((c.young || c.any).n)} OVR +1.` } : { fx: [], txt: `Menjava brez učinka.` } },
+    ] },
+  { id: "comeback", weight: 2, req: (c) => c.any,
+    text: (c) => `💪 ${c.any.n} se vrača po dolgi poškodbi. Rehabilitacija je šla dobro — a strah ostaja.`,
+    choices: [
+      { label: "Postopna vrnitev, previdno", resolve: (c) => ({ fx: [{ t: "pm", who: c.any, d: 1 }], txt: `Samozavest se vrača. ${surname(c.any.n)} vpliv +1.` }) },
+      { label: "Vrzi ga takoj v ogenj", resolve: (c) => Math.random() < 0.5 ? { fx: [{ t: "ovr", who: c.any, d: 2 }], txt: `Kot da ni bil odsoten! OVR +2.` } : { fx: [{ t: "injury", who: c.any }], txt: `Prehitro — ${surname(c.any.n)} spet klecne.` } },
+      { label: "Preoblikuj mu igro okoli zdravja", resolve: (c) => ({ fx: [{ t: "trait", who: c.any, to: "SM" }, { t: "pm", who: c.any, d: 1 }], txt: `${surname(c.any.n)} postane 🔥 šesti mož (+vpliv 1).` }) },
+    ] },
+  { id: "druzina", weight: 1, req: (c) => c.any,
+    text: (c) => `🏠 ${c.any.n} ima družinske skrbi izven parketa. Glava ni pri igri.`,
+    choices: [
+      { label: "Daj mu prosto, kolikor rabi", resolve: (c) => ({ fx: [{ t: "pm", who: c.any, d: 2 }], txt: `Globoka hvaležnost. ${surname(c.any.n)} vpliv +2.` }) },
+      { label: "Ponudi klubsko podporo", resolve: (c) => ({ fx: [{ t: "pm", who: c.any, d: 1 }], txt: `Občutek varnosti. Vpliv +1.` }) },
+      { label: "Pričakuj profesionalnost", resolve: (c) => Math.random() < 0.5 ? { fx: [{ t: "ovr", who: c.any, d: 1 }], txt: `Košarka mu je pobeg. OVR +1.` } : { fx: [{ t: "pm", who: c.any, d: -2 }], txt: `Zlomi se pod pritiskom. Vpliv −2.` } },
     ] },
 ];
 
@@ -1212,6 +1461,9 @@ export default function App() {
       vet: rnd(r.filter((c) => c.age >= 33)), young: rnd(r.filter((c) => c.age <= 23 && !c.rookie)),
       unhappyStar: rnd(r.filter((c) => c.unhappy)), shooter: rnd(r.filter((c) => c.tr === "SN")),
       leader: r.find((c) => c.tr === "VD") || null, overCap: effSalary(r, g.h.coach) > capFor(g.season),
+      defender: rnd(r.filter((c) => c.tr === "BR")), playmaker: rnd(r.filter((c) => c.tr === "OR")),
+      sixth: rnd(r.filter((c) => c.tr === "SM")), nonStar: rnd(r.filter((c) => c.ovr < 85)),
+      any: rnd(r), any2: rnd(r), two: r.length >= 2, big: r.slice().sort((a, b) => b.ovr - a.ovr)[0] || null,
       season: g.season,
     };
   };
@@ -2140,9 +2392,8 @@ export default function App() {
                 {evt.stage === "choose"
                   ? <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                       {evt.choices.map((ch, i) => (
-                        <button key={i} className="signopt" style={{ background: ["#215c26", "#3a2a5c", "#7a2a2a"][i] || "#152744" }} onClick={() => resolveEvent(i)}>
-                          <span className="signopt-main">{ch.label}</span>
-                          {ch.sub && <span className="signopt-sub">{ch.sub}</span>}
+                        <button key={i} className="signopt" style={{ background: ["#215c26", "#3a2a5c", "#7a2a2a", "#152744"][i] || "#152744" }} onClick={() => resolveEvent(i)}>
+                          <span className="signopt-main" style={{ fontSize: 14 }}>{ch.label}</span>
                         </button>
                       ))}
                     </div>
