@@ -890,6 +890,41 @@ function Speaker({ on, s = 18 }) {
   );
 }
 
+// ============ GLASBA (ozadje — HTMLAudio, ločeno od SFX, da efekti izstopajo) ============
+const MUSIC = (() => {
+  let el = null, enabled = true, started = false;
+  try { enabled = localStorage.getItem("fo-music") !== "0"; } catch {}
+  const TARGET = 0.06; // tiho ozadje, da sintetizirani SFX izrazito izstopajo
+  const ensure = () => {
+    if (typeof window === "undefined") return null;
+    if (!el) { el = new Audio("/music.mp3"); el.loop = true; el.volume = 0; el.preload = "auto"; }
+    return el;
+  };
+  const fade = (to, ms = 700) => {
+    const a = ensure(); if (!a) return;
+    const from = a.volume, t0 = performance.now();
+    const step = (t) => { const k = Math.min(1, (t - t0) / ms); a.volume = Math.max(0, Math.min(1, from + (to - from) * k)); if (k < 1) requestAnimationFrame(step); };
+    requestAnimationFrame(step);
+  };
+  return {
+    isOn: () => enabled,
+    kick() { if (!enabled) return; const a = ensure(); if (!a) return; if (a.paused) a.play().then(() => { started = true; fade(TARGET); }).catch(() => {}); }, // ob prvi interakciji
+    toggle() { enabled = !enabled; try { localStorage.setItem("fo-music", enabled ? "1" : "0"); } catch {} const a = ensure(); if (enabled) { a.play().then(() => { started = true; fade(TARGET); }).catch(() => {}); } else { fade(0, 400); setTimeout(() => { if (!enabled && el) el.pause(); }, 450); } return enabled; },
+    duck() { if (enabled && started && el && !el.paused) { fade(0.02, 200); setTimeout(() => { if (enabled) fade(TARGET, 1400); }, 1700); } }, // umiri ob velikem trenutku (obračun)
+  };
+})();
+
+function Note({ on, s = 18 }) {
+  return (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none">
+      <path d="M9 17.2 V6.4 L18 4.4 V15" stroke="#F5EBDC" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      <ellipse cx="6.6" cy="17.4" rx="2.6" ry="2.1" fill={on ? "#E4762B" : "#F5EBDC"} stroke="#152744" strokeWidth="1.3" />
+      <ellipse cx="15.6" cy="15.2" rx="2.6" ry="2.1" fill={on ? "#E4762B" : "#F5EBDC"} stroke="#152744" strokeWidth="1.3" />
+      {!on && <path d="M4.5 4.5 L20 19.5" stroke="#FF6B5E" strokeWidth="1.8" strokeLinecap="round" />}
+    </svg>
+  );
+}
+
 export default function App() {
   const [screen, setScreen] = useState("menu");
   const [g, setG] = useState(null);
@@ -919,6 +954,7 @@ export default function App() {
   const [leaderboard, setLeaderboard] = useState(null); // null = še ne naloženo
   const [counts, setCounts] = useState(null); // globalni števec igralcev/iger (null = ni na voljo)
   const [muted, setMuted] = useState(SFX.isMuted());
+  const [music, setMusic] = useState(MUSIC.isOn());
   const prevAuc = useRef(false);
   useEffect(() => { const has = !!(g && g.auction); if (has && !prevAuc.current) SFX.gavel(); prevAuc.current = has; }, [g && g.auction]);
   const prevScreen = useRef(screen);
@@ -926,7 +962,7 @@ export default function App() {
     if (screen === "score" && prevScreen.current !== "score" && g && g.result) {
       const win = g.franchise ? g.result.seasonWin === "h" : g.champion === "h";
       const lose = g.franchise ? g.result.seasonWin === "a" : g.champion === "a";
-      if (win) SFX.cheer(); else if (lose) SFX.dribble();
+      if (win) { SFX.cheer(); MUSIC.duck(); } else if (lose) { SFX.dribble(); MUSIC.duck(); }
     }
     prevScreen.current = screen;
   }, [screen]);
@@ -968,7 +1004,7 @@ export default function App() {
 
   const start = () => { pingGame(); setG(freshRound(1, { h: 0, a: 0 })); setScreen("play"); setSel(null); setShowIntro(true); };
   const closeIntro = () => { setShowIntro(false); try { localStorage.setItem("fo-seen-intro", "1"); } catch {} };
-  const startFranchise = (seasons) => { pingGame(); setG(freshSeason(1, { titles: { h: 0, a: 0 }, keepH: [], keepA: [], seasons, cum: { h: 0, a: 0 } })); setScreen("play"); setSel(null); setIntroPage(1); let seen = false; try { seen = !!localStorage.getItem("fo-seen-intro"); } catch {} setShowIntro(!seen); setLbSaved(false); };
+  const startFranchise = (seasons) => { MUSIC.kick(); pingGame(); setG(freshSeason(1, { titles: { h: 0, a: 0 }, keepH: [], keepA: [], seasons, cum: { h: 0, a: 0 } })); setScreen("play"); setSel(null); setIntroPage(1); let seen = false; try { seen = !!localStorage.getItem("fo-seen-intro"); } catch {} setShowIntro(!seen); setLbSaved(false); };
   const nextRound = () => { setG(freshRound(g.round + 1, g.totals)); setScreen("play"); setSel(null); };
   const goOffseason = () => {
     const R = (lo, hi) => lo + Math.floor(Math.random() * (hi - lo + 1));
@@ -1940,6 +1976,7 @@ export default function App() {
           <div><h1>FRONT OFFICE</h1><div className="sub">{g.franchise ? `Sezona ${g.season}/${g.seasons} · naslovi ${g.titles.h}:${g.titles.a}` : `Runda ${g.round} · sezona do ${TARGET} točk`}</div></div>
           <div className="score-strip" style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <span>picki<b style={{ fontSize: 14 }}><Ico k="f" s={14} />{g.h.picks.f} <Ico k="s" s={14} />{g.h.picks.s}{g.h.picks.w ? <> <Ico k="w" s={14} /></> : null}</b></span>
+            <button onClick={() => setMusic(MUSIC.toggle())} title={music ? "Izklopi glasbo" : "Vklopi glasbo"} aria-label={music ? "Izklopi glasbo" : "Vklopi glasbo"} style={{ background: "none", border: "none", padding: 4, cursor: "pointer", lineHeight: 0, opacity: music ? 1 : 0.6 }}><Note on={music} s={19} /></button>
             <button onClick={() => setMuted(SFX.toggle())} title={muted ? "Vklopi zvok" : "Izklopi zvok"} aria-label={muted ? "Vklopi zvok" : "Izklopi zvok"} style={{ background: "none", border: "none", padding: 4, cursor: "pointer", lineHeight: 0, opacity: muted ? 0.6 : 1 }}><Speaker on={!muted} s={19} /></button>
           </div>
         </div>
