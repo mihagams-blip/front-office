@@ -166,6 +166,57 @@ const HOOKS = {
   odrasel: { n: "Odrasel", d: "+3 na klopi — zanesljiva menjava" },
   motor: { n: "Motor", d: "+4 kot štartar ob vsaj 2 🛡️ branilcih v peterki" },
 };
+// 🏗️ FRANŠIZNA INFRASTRUKTURA — drugi tir gradnje: nadgrajuješ jo čez sezone z 🧱 SKLADOM, spreminja PRAVILA tvoje ekonomije.
+// Vsaka linija ima 3 ravni (L3 skrit do L2). Franšiza ob štartu vidi 5 od teh linij (Trening center zajamčen + 4 naključne).
+const INFRA_COST = { 1: 3, 2: 5, 3: 8 };
+const INFRA = {
+  trening: { n: "Trening center", ico: "🏋️", d: ["Klop-proga razvoja +40 % hitreje", "Peterka-proga tudi +30 % hitreje", "⭑ kavelj mladca šteje dvojno ob razvoju"] },
+  akademija: { n: "Akademija", ico: "🎓", d: ["Mladi se razvijajo do 24. leta (nam. 23)", "…do 25. leta", "Poletna liga razvija dvakrat hitreje"] },
+  medicinski: { n: "Medicinski center", ico: "🩺", d: ["Rehab vedno stane le 1×🥈", "Tveganje poškodbe tvojih −50 %", "Poškodovanec se ob koncu tvoje poteze sam pozdravi"] },
+  znanost: { n: "Športna znanost", ico: "🧬", d: ["Staranje 31–33 let blažje (−1)", "Upad 34+ razpolovljen", "Upokojitvena meja 72 → 66 (veterani dlje)"] },
+  navijaci: { n: "Navijaška baza", ico: "📣", d: ["+6 tč pri polnem rosterju (10/10)", "+10 tč pri polnem rosterju", "+14 tč pri polnem rosterju"] },
+  legende: { n: "Hiša legend", ico: "🧭", d: ["⭐ vodja: bonus +6", "⭐ vodja: bonus +10", "Mentor velja tudi za 💎 elite (na klopi ne 😤)"] },
+};
+const INFRA_IDS = Object.keys(INFRA);
+// ☎️ ROLODEX — potrošne karte-klici, ki jih DRŽIŠ (max 3) in sam izbereš trenutek igranja med sezono.
+// kind: now = odigraš na svoji potezi · target = izbereš igralca · reaction = ponudi se v svojem oknu (poškodba/dražba)
+const CALLS = {
+  drbine:      { n: "Dr. Bine s Ptuja", ico: "🩺", kind: "now",      d: "Takoj pozdravi tvojega poškodovanca (zastonj)." },
+  kava:        { n: "Kava z agentom",   ico: "😌", kind: "target",   d: "Pomiri enega nezadovoljnega igralca (😤 → nazaj)." },
+  popust:      { n: "Prišepnjen popust", ico: "💸", kind: "now",     d: "Naslednji podpis to potezo: −8 M$." },
+  hitra:       { n: "Hitra poteza",     ico: "⚡", kind: "now",      d: "Takoj potegni dodatno karto v roko." },
+  usluga:      { n: "Usluga iz lige",   ico: "🥈", kind: "now",      d: "Dobiš +1× 🥈 pick." },
+  aneks:       { n: "Aneks k pogodbi",  ico: "🖋️", kind: "target",   d: "Izbranemu igralcu +1 leto pogodbe." },
+  zavarovanje: { n: "Zavarovalna polica", ico: "🛡️", kind: "reaction", d: "Ob poškodbi tvojega igralca jo izničiš." },
+  zadnja:      { n: "Zadnja ponudba",   ico: "📞", kind: "reaction", d: "Med dražbo razkriješ AI-jevo ponudbo, preden oddaš svojo." },
+  neznana:     { n: "Neznana številka", ico: "☎️", kind: "now",      d: "Skrit učinek — razkrije se šele ob klicu." },
+};
+const CALL_IDS = Object.keys(CALLS);
+const randCall = () => CALL_IDS[Math.floor(Math.random() * CALL_IDS.length)];
+// 📋 PRAVILA LIGE — proceduralni sezonski twist (razkrit v prestopnem roku PRED gradnjo, velja za oba GM-a).
+// Vsaka franšiza ima drugačno zaporedje → jedro prejšnje sezone ni več optimalno.
+const LEAGUE_RULES = {
+  koledar: { n: "Zgoščen koledar", ico: "📅", d: "Več poškodb to sezono (18 % namesto 12 %)." },
+  zdrava:  { n: "Zdrava sezona",   ico: "💚", d: "Manj poškodb to sezono (6 % namesto 12 %)." },
+  mladina: { n: "Mladinsko pravilo", ico: "🌱", d: "Mladi se razvijajo 20 % hitreje (vse proge)." },
+  bogata:  { n: "Bogata liga",     ico: "💰", d: "Ob koncu sezone oba GM-a +2🧱 v sklad." },
+  loterija:{ n: "Loterija talentov", ico: "🎟️", d: "Oba GM-a začneta sezono z dodatnim klicem v Rolodexu." },
+  prosti:  { n: "Prosti trg",      ico: "🔓", d: "Oba GM-a začneta sezono z dodatnim 🥇 pickom." },
+};
+const LEAGUE_IDS = Object.keys(LEAGUE_RULES);
+const infraLvl = (side, id) => (side && side.infra ? side.infra[id] || 0 : 0); // side = g.h ali g.a
+// cena rehaba: Medicinski L1 → vedno 1×🥈; sicer prvi v franšizi 1×, naslednji 2×
+const rehabCostFor = (g, side) => ((g[side] && g[side].infra && g[side].infra.medicinski) >= 1 ? 1 : (g.rehabUsed && g.rehabUsed[side] ? 2 : 1));
+// aditivni prispevek infrastrukture k oceni rosterja (izven baseStrOf!) — Navijaška baza + Hiša legend
+const infraScoreBonus = (side, roster) => {
+  if (!side || !side.infra) return 0;
+  let b = 0;
+  const nav = side.infra.navijaci || 0;
+  if (nav && roster.length >= 10) b += nav >= 3 ? 14 : nav >= 2 ? 10 : 6;
+  const leg = side.infra.legende || 0;
+  if (leg && roster.some((c) => c.tr === "VD")) b += leg >= 2 ? 10 : 6;
+  return b;
+};
 // draft 2026 prospekti (pozicije/ocene so ocena) — [ime, pos, plača, OVR zdaj, vpliv, lastnost, tier, potencial min, max, starost]
 const ROOKIES_RAW = [
   ["AJ Dybantsa", "SF", 8, 74, 2, "SN", "elite", 84, 95, 19, "alfa"],
@@ -380,7 +431,7 @@ function bestStarters(roster, coach, injuredId) {
   return map;
 }
 
-function scoreRoster(roster, handCount, isFirst, starterMap, picks, coach, injuredId, deadCap = 0, phil = null, cap = CAP) {
+function scoreRoster(roster, handCount, isFirst, starterMap, picks, coach, injuredId, deadCap = 0, phil = null, cap = CAP, infraBonus = 0) {
   const map = starterMap || bestStarters(roster, coach, injuredId);
   const starters = {};
   POS.forEach((p) => { const c = roster.find((x) => x.id === map[p]); if (c && c.id !== injuredId) starters[p] = c; });
@@ -435,18 +486,16 @@ function scoreRoster(roster, handCount, isFirst, starterMap, picks, coach, injur
     else if (c.hook === "motor" && st && sCards.filter((o) => o.tr === "BR").length >= 2) p = 4;
     if (p) { hookPts += p; hookList.push(`⭑ ${HOOKS[c.hook].n} — ${surname(c.n)} +${p}`); }
   });
-  const total = starterPts + lb.spacing + lb.wall + lb.dirigent + lb.coachPts + syn.total + benchPts + sixthPts + duoPts + big3 + superteam + moneyball + doncic + leader + pickPts + tax + stackPen + missR * -20 + missPos * -10 + handCount * -5 + (isFirst ? 20 : 0) + philPts + hookPts;
-  return { starters, bench, starterPts, ...lb, syn, benchPts, sixth, sixthPts, duoPts, duoClubs, big3, superteam, moneyball, doncic, leader, pickPts, picks, tax, stackPen, stackPos, salary, eff, payroll, deadCap: deadCap || 0, mbThr, coach, phil, philPts, philLabel, hookPts, hookList, missR, missPos, handCount, isFirst, cap, total };
+  const total = starterPts + lb.spacing + lb.wall + lb.dirigent + lb.coachPts + syn.total + benchPts + sixthPts + duoPts + big3 + superteam + moneyball + doncic + leader + pickPts + tax + stackPen + missR * -20 + missPos * -10 + handCount * -5 + (isFirst ? 20 : 0) + philPts + hookPts + infraBonus;
+  return { starters, bench, starterPts, ...lb, syn, benchPts, sixth, sixthPts, duoPts, duoClubs, big3, superteam, moneyball, doncic, leader, pickPts, picks, tax, stackPen, stackPos, salary, eff, payroll, deadCap: deadCap || 0, mbThr, coach, phil, philPts, philLabel, hookPts, hookList, missR, missPos, handCount, isFirst, cap, infraBonus, total };
 }
 
 function freshRound(round, totals) {
   const deck = shuffle(priceDeck(PLAYERS));
-  const h = { hand: deck.splice(0, 8), roster: [], starters: {}, picks: { f: 2, s: 3, w: 1 }, tradeUsed: false, coach: null, deadCap: 0, signedTurn: 0 };
-  const a = { hand: deck.splice(0, 8), roster: [], picks: { f: 2, s: 3, w: 1 }, coach: null };
+  const h = { hand: deck.splice(0, 8), roster: [], summer: [], starters: {}, picks: { f: 2, s: 3, w: 1 }, tradeUsed: false, coach: null, deadCap: 0, signedTurn: 0, sklad: 0, infra: {}, calls: [] };
+  const a = { hand: deck.splice(0, 8), roster: [], summer: [], picks: { f: 2, s: 3, w: 1 }, coach: null, sklad: 0, infra: {}, calls: [] };
   const aDisc = [deck.pop()]; // trg prostih igralcev (ti kupuješ s popustom)
-  const yr = genClass(round);
-  const draftBoard = shuffle(yr.cls).slice(0, 5).map((r, i) => ({ ...r, id: 2000 + round * 100 + i })); // deska prospektov za draft (unikatni id na rundo)
-  return { round, totals, deck, hDisc: [], aDisc, draftBoard, draftUsed: { h: { f: 0, s: 0 }, a: { f: 0, s: 0 } }, h, a, injured: { h: null, a: null }, rehabUsed: { h: false, a: false }, turn: "h", phase: "draw", finisher: null, finalFor: null, reshuffled: false, log: [`Runda ${round}: karte razdeljene. Najprej izberi coacha.`], result: null, aiTurns: 0, banner: null, champion: null, auction: null };
+  return { round, totals, deck, hDisc: [], aDisc, h, a, injured: { h: null, a: null }, rehabUsed: { h: false, a: false }, turn: "h", phase: "draw", finisher: null, finalFor: null, reshuffled: false, log: [`Runda ${round}: karte razdeljene. Najprej izberi coacha.`], result: null, aiTurns: 0, banner: null, champion: null, auction: null };
 }
 
 const contractFor = (c) => c.rookie ? 3 : c.age >= 30 ? 1 : 2; // rookie 3, veteran 1, ostali 2
@@ -470,17 +519,18 @@ const ROOKIE_SCALE = 0.5; // novinec še na rookie pogodbi: plača sledi razvoju
 
 // franšizna sezona: season 1 = iz nič; season 2+ = ohrani roster (keepH/keepA)
 function freshSeason(season, opts) {
-  const { titles, keepH, keepA, seasons, cum, bonusPicks } = opts;
-  const keptIds = new Set([...(keepH || []), ...(keepA || [])].map((c) => c.id));
+  const { titles, keepH, keepA, keepSummerH, keepSummerA, seasons, cum, bonusPicks, skladH, skladA, infraH, infraA, infraOffer, callsH, callsA, ownerBase, leagueRule } = opts;
+  const keptIds = new Set([...(keepH || []), ...(keepA || []), ...(keepSummerH || []), ...(keepSummerA || [])].map((c) => c.id));
   const deck = shuffle(priceDeck(PLAYERS.filter((p) => !keptIds.has(p.id))));
-  const h = { hand: deck.splice(0, 8), roster: [...(keepH || [])], starters: {}, picks: { f: 2 + (bonusPicks ? bonusPicks.f : 0), s: Math.max(0, 3 + (bonusPicks ? bonusPicks.s : 0)), w: 1 }, tradeUsed: false, coach: null, deadCap: 0, signedTurn: 0 };
-  const a = { hand: deck.splice(0, 8), roster: [...(keepA || [])], picks: { f: 2, s: 3, w: 1 }, coach: null };
+  const lrPick = leagueRule === "prosti" ? 1 : 0; // 🔓 Prosti trg: +1🥇
+  const lrCall = leagueRule === "loterija" ? [randCall()] : []; // 🎟️ Loterija talentov: +1 klic
+  const h = { hand: deck.splice(0, 8), roster: [...(keepH || [])], summer: [...(keepSummerH || [])], starters: {}, picks: { f: 2 + lrPick + (bonusPicks ? bonusPicks.f : 0), s: Math.max(0, 3 + (bonusPicks ? bonusPicks.s : 0)), w: 1 }, tradeUsed: false, coach: null, deadCap: 0, signedTurn: 0, sklad: skladH || 0, infra: infraH || {}, calls: [...(callsH || []), randCall(), ...lrCall].slice(0, 3) };
+  const a = { hand: deck.splice(0, 8), roster: [...(keepA || [])], summer: [...(keepSummerA || [])], picks: { f: 2 + lrPick, s: 3, w: 1 }, coach: null, sklad: skladA || 0, infra: infraA || {}, calls: [...(callsA || []), randCall(), ...(leagueRule === "loterija" ? [randCall()] : [])].slice(0, 3) };
   const aDisc = [deck.pop()];
   const yr = genClass(season);
   const takenNames = new Set([...(keepH || []), ...(keepA || [])].map((c) => c.n));
   const clsAvail = yr.cls.filter((r) => !takenNames.has(r.n));
-  const draftBoard = shuffle(clsAvail).slice(0, 5).map((r, i) => ({ ...r, id: 2000 + season * 100 + i }));
-  return { franchise: true, season, seasons: seasons || 3, cum: cum || { h: 0, a: 0 }, titles: titles || { h: 0, a: 0 }, seasonLog: opts.seasonLog || [], philosophy: opts.philosophy || { h: null, a: null }, round: season, totals: { h: 0, a: 0 }, deck, hDisc: [], aDisc, draftBoard, rookieClass: clsAvail, classInfo: { strength: yr.strength, elites: yr.elites }, draftUsed: { h: { f: 0, s: 0 }, a: { f: 0, s: 0 } }, h, a, injured: { h: null, a: null }, rehabUsed: { h: false, a: false }, turn: "h", phase: "draw", finisher: null, finalFor: null, reshuffled: false, log: [`SEZONA ${season}: ${keepH && keepH.length ? `obdržal si ${keepH.length} igralcev.` : "prazna ekipa."} Letnik drafta je ${yr.strength} (${yr.elites}×💎). ${opts.philosophy && opts.philosophy.h ? "" : "Izberi filozofijo in coacha."}`], result: null, aiTurns: 0, banner: null, champion: null, auction: null };
+  return { franchise: true, season, seasons: seasons || 3, infraOffer: infraOffer || null, ownerBase: ownerBase || null, leagueRule: leagueRule || null, cum: cum || { h: 0, a: 0 }, titles: titles || { h: 0, a: 0 }, seasonLog: opts.seasonLog || [], philosophy: opts.philosophy || { h: null, a: null }, round: season, totals: { h: 0, a: 0 }, deck, hDisc: [], aDisc, rookieClass: clsAvail, classInfo: { strength: yr.strength, elites: yr.elites }, h, a, injured: { h: null, a: null }, rehabUsed: { h: false, a: false }, turn: "h", phase: "draw", finisher: null, finalFor: null, reshuffled: false, log: [`SEZONA ${season}: ${keepH && keepH.length ? `obdržal si ${keepH.length} igralcev.` : "prazna ekipa."}${keepSummerH && keepSummerH.length ? ` ${keepSummerH.length} v poletni ligi.` : ""} ${opts.philosophy && opts.philosophy.h ? "" : "Izberi filozofijo in coacha."}`], result: null, aiTurns: 0, banner: null, champion: null, auction: null };
 }
 
 // ============ MEDSEZONSKA DRAMA (FTL-slog dogodki) ============
@@ -532,7 +582,7 @@ const EVENTS = [
       { label: "Elitni zasebni trener", resolve: (c) => Math.random() < 0.7 ? { fx: [{ t: "ovr", who: c.rook, d: 3 }], txt: `Preskok! ${surname(c.rook.n)} OVR +3.` } : { fx: [{ t: "pm", who: c.rook, d: -1 }], txt: `Pregorel. Vpliv −1.` } },
       { label: "Pošlji ga v tujino nabirat izkušnje", resolve: (c) => Math.random() < 0.5 ? { fx: [{ t: "ovr", who: c.rook, d: 2 }, { t: "trait", who: c.rook, to: "OR" }], txt: `Vrne se kot 🧠 organizator (+OVR 2)!` } : { fx: [{ t: "ovr", who: c.rook, d: 1 }], txt: `Kaljenje. OVR +1.` } },
     ] },
-  { id: "zid", weight: 2, req: (c) => c.rook && c.rook.developed,
+  { id: "zid", weight: 2, req: (c) => c.rook,
     text: (c) => `🧱 ${c.rook.n} je zadel »rookie zid« — telo ne dohaja glave.`,
     choices: [
       { label: "Daj mu počitka", resolve: (c) => ({ fx: [{ t: "pm", who: c.rook, d: 1 }], txt: `Spočit se vrne. ${surname(c.rook.n)} vpliv +1.` }) },
@@ -832,10 +882,17 @@ function aiPlay(g) {
   const logs = [];
   let { deck, hDisc, aDisc, reshuffled } = g;
   hDisc = [...hDisc]; aDisc = [...aDisc];
-  const a = { ...g.a, hand: [...g.a.hand], roster: [...g.a.roster] };
+  const a = { ...g.a, hand: [...g.a.hand], roster: [...g.a.roster], calls: [...(g.a.calls || [])] };
   let injured = { ...g.injured };
   let rehabUsed = g.rehabUsed || { h: false, a: false };
-  const aRc = rehabUsed.a ? 2 : 1;
+  // ☎️ AI odigra NAJVEČ 1 klic na potezo (pošteno: glasno v dnevnik). Ozek nabor s preprostimi sprožilci.
+  const aiUseCall = (id) => { a.calls.splice(a.calls.indexOf(id), 1); };
+  if (a.calls.includes("drbine") && injured.a) { const inj = a.roster.find((c) => c.id === injured.a); injured = { ...injured, a: null }; aiUseCall("drbine"); logs.push(`📞 AI: dr. Bine je pozdravil ${inj ? surname(inj.n) : "igralca"}.`); }
+  else if (a.calls.includes("zavarovanje") && injured.a) { const inj = a.roster.find((c) => c.id === injured.a); injured = { ...injured, a: null }; aiUseCall("zavarovanje"); logs.push(`📞 AI: zavarovalna polica — ${inj ? surname(inj.n) : "igralec"} ostaja zdrav.`); }
+  else if (a.calls.includes("kava") && a.roster.some((c) => c.unhappy)) { const u = a.roster.find((c) => c.unhappy); a.roster = a.roster.map((c) => { if (c.id !== u.id) return c; const { unhappy: _u, basePm: _b, unhappyCause: _c, ...rest } = c; return { ...rest, pm: c.basePm != null ? c.basePm : c.pm }; }); aiUseCall("kava"); logs.push(`📞 AI: kava z agentom — ${surname(u.n)} spet zadovoljen.`); }
+  else if (a.calls.includes("usluga") && a.picks.s <= 1) { a.picks = { ...a.picks, s: a.picks.s + 1 }; aiUseCall("usluga"); logs.push("📞 AI: usluga iz lige — +1× 🥈."); }
+  else if (a.calls.includes("neznana")) { aiUseCall("neznana"); if (Math.random() < 0.5) { a.picks = { ...a.picks, s: a.picks.s + 1 }; logs.push("📞 AI: neznana številka — nekaj mu je uspelo."); } else logs.push("📞 AI: neznana številka — klic v prazno."); }
+  const aRc = rehabCostFor(g, "a");
   if (injured.a && a.picks.s >= aRc) {
     const inj = a.roster.find((c) => c.id === injured.a);
     if (inj && spts(inj) >= 95) {
@@ -846,23 +903,6 @@ function aiPlay(g) {
     }
   }
   const turnN = g.aiTurns + 1;
-  let board = [...g.draftBoard];
-  let draftUsed = g.draftUsed;
-  // AI občasno draftira prospekta (1. krog), a največ 1 first na rundo
-  if (board.length && a.picks.f > 0 && draftUsed.a.f < 1 && a.roster.length < 9 && a.hand.length < 9) {
-    const aiBase = baseStrOf(scoreRoster(a.roster, 0, false, null, a.picks, a.coach, injured.a, 0));
-    const hBase = baseStrOf(scoreRoster(g.h.roster, 0, false, null, g.h.picks, g.h.coach, g.injured.h, g.h.deadCap));
-    const aiTop = slotTier(hBase - aiBase).top;
-    const pool = board.filter((p) => p.tier !== "safe" && (p.tier !== "elite" || aiTop));
-    const r1 = pool.sort((x, y) => (y.potLow + y.potHigh) - (x.potLow + x.potHigh))[0];
-    if (r1 && (r1.potLow + r1.potHigh) / 2 >= 84) {
-      board = board.filter((p) => p.id !== r1.id);
-      a.picks = { ...a.picks, f: a.picks.f - 1 };
-      draftUsed = { ...draftUsed, a: { ...draftUsed.a, f: draftUsed.a.f + 1 } };
-      a.hand.push({ ...r1 });
-      logs.push(`🎫 AI je draftal prospekta ${r1.n} (${r1.tier === "elite" ? "💎" : "🌱"}).`);
-    }
-  }
   const thrDraw = Math.max(58, 78 - 2 * turnN);
   // AI kupuje iz TVOJIH odpuščenih (hDisc) s popustom
   const market = hDisc.filter((c) => canSign(a.roster, c)).map((c) => asDiscount(c)).sort((x, y) => val(y) - val(x));
@@ -924,7 +964,7 @@ function aiPlay(g) {
       logs.push(`AI je odpustil: ${worst.n} (na voljo tebi s popustom).`);
     }
   }
-  return { ...g, deck, hDisc, aDisc, draftBoard: board, draftUsed, a, injured, rehabUsed, reshuffled, aiTurns: turnN, log: [...g.log, ...logs], discardedCard };
+  return { ...g, deck, hDisc, aDisc, a, injured, rehabUsed, reshuffled, aiTurns: turnN, log: [...g.log, ...logs], discardedCard };
 }
 
 // ============ VIZUALNE KOMPONENTE ============
@@ -1001,15 +1041,17 @@ function Face({ c, cls }) {
   return null;
 }
 
-// hrbet karte za pack-opening obrat (dizajn recikliran iz skritega kupa)
-// TODO(ChatGPT slike): ko bo narejen card-back iz ChatGPT, sem vstavi <img src="/img/card-back-v1.jpg"> namesto SVG žoge
+// hrbet karte za pack-opening obrat — prava ilustracija (ChatGPT), fallback SVG žoga če slika ne naloži
 function CardBack({ tell }) {
+  const [imgOk, setImgOk] = useState(true);
   return (
     <div className={"card-back" + (tell ? " tell" : "")}>
-      <svg viewBox="0 0 32 32" aria-hidden="true">
-        <circle cx="16" cy="16" r="13" fill="#E4762B" stroke="#F0B429" strokeWidth="1.6" />
-        <path d="M16 3v26 M3 16h26 M8.7 8.7c4 3.2 4 11.4 0 14.6 M23.3 8.7c-4 3.2-4 11.4 0 14.6" fill="none" stroke="#152744" strokeWidth="1.7" strokeLinecap="round" />
-      </svg>
+      {imgOk
+        ? <img className="card-back-img" src="/img/cardback-v1.jpg" alt="" draggable={false} onError={() => setImgOk(false)} />
+        : <svg viewBox="0 0 32 32" aria-hidden="true">
+            <circle cx="16" cy="16" r="13" fill="#E4762B" stroke="#F0B429" strokeWidth="1.6" />
+            <path d="M16 3v26 M3 16h26 M8.7 8.7c4 3.2 4 11.4 0 14.6 M23.3 8.7c-4 3.2-4 11.4 0 14.6" fill="none" stroke="#152744" strokeWidth="1.7" strokeLinecap="round" />
+          </svg>}
     </div>
   );
 }
@@ -1238,7 +1280,7 @@ function BonusChips({ r, onExplain, coach }) {
   if (r.superteam) chips.push(["🌟 SUPERTEAM", r.superteam, "🌟 Superteam: 3 štartarji z OVR 93+ v prvi peterki → +35."]);
   if (r.moneyball) chips.push(["💰 Moneyball", r.moneyball, `💰 Moneyball: poln roster (10 igralcev) pod pragom plač (${r.mbThr || 145} M$) → +25.`]);
   if (r.doncic) chips.push(["🇸🇮 Dončić", r.doncic, "🇸🇮 Dončić v prvi peterki → +5."]);
-  if (r.pickPts) chips.push(["🥇 Neporabljeni picki", r.pickPts, `🥇 Neporabljeni draft picki ob koncu runde: vsak 🥇 +${PV.f}, vsak 🥈 +${PV.s}. Namig: raje jih porabi za draft prospekta (gumb 🎫) — surov, a se razvije.`]);
+  if (r.pickPts) chips.push(["🥇 Neporabljeni picki", r.pickPts, `🥇 Neporabljeni picki ob koncu runde: vsak 🥇 +${PV.f}, vsak 🥈 +${PV.s}. Namig: pametno porabljen pick (popust na plačo, rehab, dražba) je pogosto vreden precej več kot točke v žepu.`]);
   if (r.tax) chips.push(["💸 Luksuzni davek", r.tax, `💸 Luksuzni davek: plačna masa nad limitom ${r.cap || CAP} M$ — prvih 20 M$ čez po −1/M, nato po −2/M (apron). Tvoja masa: ${r.payroll} M$.`]);
   if (r.stackPen) chips.push([`🚫 Preveč na poziciji (${r.stackPos.join(", ")})`, r.stackPen, `🚫 Prenatrpana pozicija: 3 igralci na isti poziciji (${r.stackPos.join(", ")}) → −15 vsaka. Ne kopiči poceni globine — raje razporedi 2-2-2-2-2 ali vzemi manj, boljših.`]);
   const [open, setOpen] = useState(false);
@@ -1415,6 +1457,9 @@ export default function App() {
   const [bigStamp, setBigStamp] = useState(null); // velik žig čez ekran (TEMELJ FRANŠIZE)
   const [aucReveal, setAucReveal] = useState(null); // razplet dražbe (kuverti)
   const [aucStage, setAucStage] = useState(0); // 0 = tvoja kuverta, 1 = AI kuverta, 2 = udarec kladiva
+  const [callModal, setCallModal] = useState(null); // { id } — igranje klica (potrditev / izbira tarče)
+  const [injOffer, setInjOffer] = useState(null); // reakcija: tvoj igralec poškodovan + držiš 🛡️
+  const [deadline, setDeadline] = useState(null); // ⏰ rok za prestope: { offers: [3 klici] }
   useEffect(() => {
     if (!reveal) { setFlipped(false); return; }
     setFlipped(false);
@@ -1433,7 +1478,6 @@ export default function App() {
   const [waiveMode, setWaiveMode] = useState(false);
   const [waiveTarget, setWaiveTarget] = useState(null);
   const [inspect, setInspect] = useState(null); // {card, side} — info modal za igralca v rosterju
-  const [draftOpen, setDraftOpen] = useState(false); // modal deske prospektov
   const [aiOpen, setAiOpen] = useState(false); // razširjena AI ploščica
   const [logOpen, setLogOpen] = useState(false); // razširjen dnevnik (privzeto ticker)
   const [discOpen, setDiscOpen] = useState(false); // tvoj odpad — privzeto skrčen (večinoma te ne zanima)
@@ -1494,13 +1538,13 @@ export default function App() {
 
   const maybeAuctionStart = (st) => {
     const top = st.aDisc[st.aDisc.length - 1];
-    if (top && top.ovr >= AUCTION_OVR) { setBid({ f: 0, s: 0, w: 0 }); return { ...st, auction: { card: top, cont: "start" } }; }
+    if (top && top.ovr >= AUCTION_OVR) { setBid({ f: 0, s: 0, w: 0 }); return { ...st, revealAiBid: null, auction: { card: top, cont: "start" } }; }
     return st;
   };
 
   const start = () => { pingGame(); setG(freshRound(1, { h: 0, a: 0 })); setScreen("play"); setSel(null); setShowIntro(true); };
   const closeIntro = () => { setShowIntro(false); try { localStorage.setItem("fo-seen-intro", "1"); } catch {} };
-  const startFranchise = (seasons) => { MUSIC.kick(); pingGame(); const g0 = freshSeason(1, { titles: { h: 0, a: 0 }, keepH: [], keepA: [], seasons, cum: { h: 0, a: 0 } }); const foundBoard = shuffle(g0.rookieClass || []).slice(0, 8); setG({ ...g0, founding: { board: foundBoard, hUsed: 0, aUsed: 0 }, log: [...g0.log, "🏗️ USTANOVNI NABOR: izberi 2 mlada temelja svoje franšize."] }); setScreen("founding"); setSel(null); setIntroPage(1); let seen = false; try { seen = !!localStorage.getItem("fo-seen-intro"); } catch {} setShowIntro(!seen); setLbSaved(false); setEvt(null); setSeenEvt([]); evtCarryRef.current = null; };
+  const startFranchise = (seasons) => { MUSIC.kick(); pingGame(); const infraOffer = ["trening", ...shuffle(INFRA_IDS.filter((k) => k !== "trening")).slice(0, 4)]; const g0 = freshSeason(1, { titles: { h: 0, a: 0 }, keepH: [], keepA: [], seasons, cum: { h: 0, a: 0 }, infraOffer }); const foundBoard = shuffle(g0.rookieClass || []).slice(0, 8); setG({ ...g0, founding: { board: foundBoard, hUsed: 0, aUsed: 0 }, log: [...g0.log, "🏗️ USTANOVNI NABOR: izberi 2 mlada temelja svoje franšize."] }); setScreen("founding"); setSel(null); setIntroPage(1); let seen = false; try { seen = !!localStorage.getItem("fo-seen-intro"); } catch {} setShowIntro(!seen); setLbSaved(false); setEvt(null); setSeenEvt([]); evtCarryRef.current = null; };
   const nextRound = () => { setG(freshRound(g.round + 1, g.totals)); setScreen("play"); setSel(null); };
   // ---- MEDSEZONSKA DRAMA ----
   const buildEvtCtx = () => {
@@ -1559,19 +1603,20 @@ export default function App() {
     const R = (lo, hi) => lo + Math.floor(Math.random() * (hi - lo + 1));
     const ageReport = [];
     const ageRoster = (roster, coach, injuredId, side) => {
-      const starterIds = new Set(Object.values(bestStarters(roster, coach, injuredId)));
       const kept = [];
+      const iZna = (g[side].infra && g[side].infra.znanost) || 0; // 🧬 Športna znanost
       roster.forEach((c) => {
         const age = c.age + 1;
         let d = 0;
-        if (c.age <= 23) d = starterIds.has(c.id) ? R(1, 3) : R(0, 2);       // mladi rastejo (minute → bolj)
+        // mladih tu ne razvijamo (to počne večletni `grow` po progah); staranje veteranov je zdaj ostrejše, da kupljene zvezde hitreje zbledijo
+        if (c.age <= 23) d = 0;                                                // razvoj mladih: glej grow (peterka/klop/poletna liga)
         else if (c.age <= 30) d = R(-1, 1);                                   // najboljša leta: skoraj stabilno
-        else if (c.age <= 33) d = -R(1, 3);                                   // pozna leta: blag upad
-        else d = -R(2, 4);                                                    // veterani: hitrejši upad
+        else if (c.age <= 33) d = iZna >= 1 ? -R(1, 2) : -R(2, 3);            // pozna leta: znaten upad (L1 blažje)
+        else d = iZna >= 2 ? -Math.ceil(R(3, 5) / 2) : -R(3, 5);              // veterani: hiter upad (L2 razpolovljen)
         const ovr = Math.max(50, Math.min(99, c.ovr + d));
-        const retired = (age >= 34 && ovr < 72) || age >= 41;
+        const retired = (age >= 34 && ovr < (iZna >= 3 ? 66 : 72)) || age >= 41; // L3: nižja upokojitvena meja
         if (Math.abs(d) >= 1 || retired) ageReport.push({ n: c.n, side, from: c.ovr, to: ovr, d, age, retired });
-        if (!retired) kept.push({ ...c, age, ovr, developed: true });         // po prvi sezoni ne razvijaj več kot rookie
+        if (!retired) kept.push({ ...c, age, ovr });
       });
       return kept;
     };
@@ -1588,15 +1633,10 @@ export default function App() {
       const bar = c.age >= 34 ? 74 : c.age >= 30 ? 70 : 64;
       if (vNew >= bar && effSalary([...aRoster, { ...c, sal: ns }], g.a.coach) <= capFor(g.season + 1) + Math.round(APRON / 2)) aRoster.push({ ...c, sal: ns, contract: c.age >= 30 ? 1 : 2 });
     });
-    // DRAFT LOTERIJA: poraženec sezone izbira prvi. Izloči prospekte, ki so že v ligi (isto ime → brez dvojnikov).
-    const ownedNames = new Set([...hAged, ...aAged].map((c) => c.n));
-    let draftClass = shuffle((g.rookieClass || ROOKIES).filter((r) => !ownedNames.has(r.n))).slice(0, 6).map((r, i) => ({ ...r, id: 3000 + g.season * 100 + i }));
-    const humanFirst = g.result ? g.result.seasonWin !== "h" : true; // izgubil ali izenačeno → ti prvi
-    let aiDraftPicks = [];
-    if (!humanFirst) { // zmagal si → AI grabi najboljšega prospekta prvi
-      const best = draftClass.filter((p) => p.tier !== "safe").sort((x, y) => (y.potLow + y.potHigh) - (x.potLow + x.potHigh))[0];
-      if (best) { aiDraftPicks = [best]; draftClass = draftClass.filter((p) => p.id !== best.id); }
-    }
+    // vrnitev iz poletne lige: mladi, ki so bili lani "zunaj", se postarajo (razvoj so dobili v grow) in so spet na voljo za odločitev
+    const agePlus = (c) => ({ ...c, age: c.age + 1 });
+    const hSummer = (g.h.summer || []).map(agePlus);
+    const aSummer = (g.a.summer || []).map(agePlus);
     // "HOČEM VEN": nezadovoljni prek fita — zakopan zvezdnik, zastoj, zvezdnik po porazu
     // vzroki se OCENIJO PONOVNO vsak prestopni rok — po OSNOVNEM vplivu (basePm), da prejšnja kazen ne ustvari začaranega kroga
     const bpm = (c) => (c.basePm != null ? c.basePm : c.pm);
@@ -1612,7 +1652,29 @@ export default function App() {
     });
     unhappy.sort((x, y) => y.ovr - x.ovr).splice(2); // max 2 naenkrat (najvišja OVR)
     const evtP = evtCarryRef.current || {};
-    setOffseason({ hExp, hKeepAuto, aRoster, ageReport, draftClass, humanFirst, aiDraftPicks, hDraftPicks: [], hDraftUsed: { f: 0, s: 0 }, unhappy, sold: {}, bonusPicks: { f: evtP.f || 0, s: evtP.s || 0 }, decisions: Object.fromEntries(hExp.map((c) => [c.id, true])) });
+    // 🧱 žetev neporabljenih pickov ob vstopu v prestopni rok (spendable takoj na infrastrukturi); kapica 4
+    const harvest = (p) => Math.min(4, (p.f || 0) * 2 + (p.s || 0) * 1);
+    const hHarvest = harvest(g.h.picks), aHarvest = harvest(g.a.picks);
+    // AI gradi infrastrukturo pohlepno po vrednosti/ceni (razvojne linije vredne več, ko je še veliko sezon)
+    const aiBuildInfra = (infra0, sklad0) => {
+      const infra = { ...infra0 }; let budget = sklad0; const remain = (g.seasons || 3) - g.season;
+      const base = { trening: 10 + remain * 3, akademija: 6 + remain * 3, medicinski: 7, znanost: 6, navijaci: 8, legende: 7 };
+      for (let guard = 0; guard < 10; guard++) {
+        let best = null, bestV = 0;
+        (g.infraOffer || ["trening"]).forEach((id) => {
+          const lvl = infra[id] || 0; if (lvl >= 3) return;
+          const cost = INFRA_COST[lvl + 1]; if (cost > budget) return;
+          const v = (base[id] || 5) / cost; if (v > bestV) { bestV = v; best = id; }
+        });
+        if (!best) break;
+        const lvl = infra[best] || 0; infra[best] = lvl + 1; budget -= INFRA_COST[lvl + 1];
+      }
+      return { infra, sklad: budget };
+    };
+    const aiPost = aiBuildInfra(g.a.infra || {}, (g.a.sklad || 0) + aHarvest);
+    setG({ ...g, h: { ...g.h, sklad: (g.h.sklad || 0) + hHarvest }, a: { ...g.a, sklad: aiPost.sklad, infra: aiPost.infra } });
+    const nextRule = LEAGUE_IDS[Math.floor(Math.random() * LEAGUE_IDS.length)]; // 📋 pravilo lige NASLEDNJE sezone (razkrito zdaj)
+    setOffseason({ hExp, hKeepAuto, aRoster, ageReport, hSummer, aSummer, summerSel: {}, unhappy, sold: {}, bonusPicks: { f: evtP.f || 0, s: evtP.s || 0 }, harvest: hHarvest, nextRule, decisions: Object.fromEntries(hExp.map((c) => [c.id, true])) });
     setScreen("offseason");
   };
   const sellPriceOf = (c) => c.ovr >= 92 ? { f: 2, s: 1 } : c.ovr >= 85 ? { f: 1, s: 1 } : { f: 0, s: 2 };
@@ -1627,25 +1689,17 @@ export default function App() {
     });
     say(`${surname(c.n)} prodan v tujino za ${p.f ? p.f + "×🥇 " : ""}${p.s ? p.s + "×🥈" : ""} — odide v Evropo (ne k AI!), picki pridejo naslednjo sezono.`);
   };
-  const offDraft = (c) => {
-    const rd = c.tier === "safe" ? 2 : 1;
-    if ((rd === 1 ? offseason.hDraftUsed.f : offseason.hDraftUsed.s) >= 1) { say(`Ta krog si že draftal (max 1 first + 1 second).`); return; }
-    setOffseason({ ...offseason, draftClass: offseason.draftClass.filter((x) => x.id !== c.id), hDraftPicks: [...offseason.hDraftPicks, c], hDraftUsed: { ...offseason.hDraftUsed, [rd === 1 ? "f" : "s"]: 1 } });
-    say(`🎫 Draftal si ${surname(c.n)}! Priključi se ekipi naslednjo sezono.`);
+  const upgradeInfra = (id) => {
+    const cur = (g.h.infra && g.h.infra[id]) || 0;
+    if (cur >= 3) return;
+    const cost = INFRA_COST[cur + 1];
+    if ((g.h.sklad || 0) < cost) { say(`Za nadgradnjo rabiš ${cost}× 🧱 (imaš ${g.h.sklad || 0}).`); return; }
+    SFX.pen();
+    setG({ ...g, h: { ...g.h, sklad: g.h.sklad - cost, infra: { ...(g.h.infra || {}), [id]: cur + 1 } } });
+    say(`🏗️ ${INFRA[id].n} → raven ${cur + 1}: ${INFRA[id].d[cur]}`);
   };
   const finalizeOffseason = () => {
     const resigned = offseason.hExp.filter((c) => offseason.decisions[c.id]).map((c) => ({ ...c, sal: resignSal(c), contract: c.age >= 30 ? 1 : 2 }));
-    // AI dokonča svoj draft iz preostanka (če je človek izbiral prvi, AI zdaj vzame)
-    let aiPicks = [...(offseason.aiDraftPicks || [])];
-    if (offseason.humanFirst && offseason.draftClass.length) {
-      const best = offseason.draftClass.filter((p) => p.tier !== "safe").sort((x, y) => (y.potLow + y.potHigh) - (x.potLow + x.potHigh))[0] || offseason.draftClass[0];
-      if (best) aiPicks.push(best);
-    }
-    const rookieContract = (c) => {
-      let card = { ...c, contract: 3, developed: false };
-      if (c.tier === "safe") { const to = Math.round((c.tl ?? c.potLow) + Math.random() * ((c.th ?? c.potHigh) - (c.tl ?? c.potLow))); card = { ...card, ovr: to, developed: true }; } // 🔒 pride pripravljen
-      return card;
-    };
     const unhappyIds = new Set((offseason.unhappy || []).filter((u) => !offseason.sold[u.id]).map((u) => u.id));
     const causeById = {}; (offseason.unhappy || []).forEach((u) => { if (!offseason.sold[u.id]) causeById[u.id] = u.cause; });
     const morale = (c) => {
@@ -1654,9 +1708,19 @@ export default function App() {
       if (c.unhappy || c.basePm != null) { const { unhappy: _u, basePm: _b, unhappyCause: _c, ...rest } = c; return { ...rest, pm: basePm }; } // vzrok odpravljen → povrni vpliv, odstrani 😤
       return c;
     };
-    const keptH = [...offseason.hKeepAuto, ...resigned, ...offseason.hDraftPicks.map(rookieContract)].map(morale);
-    const keptA = [...offseason.aRoster, ...aiPicks.map(rookieContract)];
-    let ns = freshSeason(g.season + 1, { titles: g.titles, keepH: keptH, keepA: keptA, seasons: g.seasons, cum: g.cum, seasonLog: g.seasonLog, bonusPicks: offseason.bonusPicks, philosophy: g.philosophy });
+    // vsi človeški obdržani + vrnjeni iz poletne lige; poletna liga vs roster po summerSel
+    const summerSel = offseason.summerSel || {};
+    const allH = [...offseason.hKeepAuto, ...resigned, ...(offseason.hSummer || [])].map(morale);
+    const keptH = allH.filter((c) => !summerSel[c.id]);
+    const keepSummerH = allH.filter((c) => summerSel[c.id]);
+    // AI: mladce brez mesta/premlade pošlje v poletno ligo (roster poln in ovr občutno pod klop-mejo)
+    const allA = [...offseason.aRoster, ...(offseason.aSummer || [])];
+    const aYoungStash = new Set();
+    const aRosterCount = allA.filter((c) => !(c.age <= 23 && c.ovr < 74)).length;
+    allA.forEach((c) => { if (c.age <= 23 && (c.th ?? c.potHigh ?? 0) > c.ovr && c.ovr < 74 && aRosterCount >= 9) aYoungStash.add(c.id); });
+    const keptA = allA.filter((c) => !aYoungStash.has(c.id));
+    const keepSummerA = allA.filter((c) => aYoungStash.has(c.id));
+    let ns = freshSeason(g.season + 1, { titles: g.titles, keepH: keptH, keepA: keptA, keepSummerH, keepSummerA, seasons: g.seasons, cum: g.cum, seasonLog: g.seasonLog, bonusPicks: offseason.bonusPicks, philosophy: g.philosophy, skladH: g.h.sklad || 0, skladA: g.a.sklad || 0, infraH: g.h.infra || {}, infraA: g.a.infra || {}, infraOffer: g.infraOffer, callsH: g.h.calls || [], callsA: g.a.calls || [], ownerBase: g.ownerBase || null, leagueRule: offseason.nextRule });
     ns = { ...ns, rehabUsed: g.rehabUsed || { h: false, a: false } }; // rehab popust velja enkrat na franšizo, ne na sezono
     // preneseni učinki medsezonske drame: poškodba na startu / free agent v roki
     const evtP = evtCarryRef.current || {};
@@ -1671,7 +1735,7 @@ export default function App() {
     evtCarryRef.current = null;
     setG(ns);
     setOffseason(null); setScreen("play"); setSel(null);
-    say(`Sezona ${g.season + 1}! ${offseason.hDraftPicks.length ? `Draftani ${offseason.hDraftPicks.map((c) => surname(c.n)).join(", ")} se pridružijo.` : ""} Cap te stiska — mladi so poceni.`);
+    say(`Sezona ${g.season + 1}! ${keepSummerH.length ? `${keepSummerH.map((c) => surname(c.n)).join(", ")} v poletni ligi (počasen razvoj, ni na voljo). ` : ""}Cap te stiska — mladi so poceni.`);
   };
 
   const pickPhilosophy = (id) => {
@@ -1704,34 +1768,51 @@ export default function App() {
   };
 
   const endRound = (state) => {
-    // razvoj rookiejev (enkraten): starter dobi minute → raste proti stropu, klop → proti tlom
+    const R = (lo, hi) => lo + Math.floor(Math.random() * (hi - lo + 1));
+    // večletni razvoj mladih: raste proti stropu vsako sezono, dokler je mlad (≤23) in pod stropom.
+    // proga določa hitrost: ★ peterka (najhitreje) > 🎓 klop (srednje) > ☀️ poletna liga (najpočasneje, a sprosti mesto)
     const dev = [];
-    const grow = (roster, coach, injuredId, side) => {
-      const starterIds = new Set(Object.values(bestStarters(roster, coach, injuredId)));
+    const grow = (roster, summer, coach, injuredId, side, starterMap, infra) => {
+      // človek: minute štejejo po DEJANSKI peterki (tvoja izbira razvija mladca); AI: najboljša peterka
+      const starterIds = starterMap
+        ? new Set(Object.values(starterMap).filter((id) => id != null && id !== injuredId))
+        : new Set(Object.values(bestStarters(roster, coach, injuredId)));
       const hasVD = roster.some((x) => x.tr === "VD");
-      return roster.map((c) => {
-        if (!c.rookie || c.developed) return c;
-        const real = starterIds.has(c.id); // zares v peterki
-        // proti stropu raste: štartar, kdorkoli pod JJ Redickom, ali 🌱 projekt ob ⭐ mentorju
-        const isS = real || coach === "jj" || (c.tier === "proj" && hasVD);
-        const lo = c.tl ?? c.potLow, hi = c.th ?? c.potHigh; // pravi (skriti) interni razpon razvoja
-        const r1 = lo + Math.random() * (hi - lo);
-        const r2 = lo + Math.random() * (hi - lo);
-        const r3 = lo + Math.random() * (hi - lo);
-        let to = Math.round(isS ? Math.max(r1, r2, r3) : Math.min(r1, r2)); // rast proti stropu: 3 žrebi (mladi core nosi pozne sezone)
-        if (c.hook === "raketa" && isS) to = Math.round(Math.max(to, lo + Math.random() * (hi - lo))); // ⭑ Raketa: še 4. žreb
-        if (c.hook === "ucenec") to = Math.min(99, to + 2); // ⭑ Učenec: +2 ob razvoju
-        const sulk = c.tier === "elite" && !real; // 💎 brez minut → nezadovoljen
-        dev.push({ n: c.n, from: c.ovr, to, side, starter: real, via: real ? "★" : isS ? "🎓" : "klop", sulk });
-        let upd = { ...c, ovr: to, developed: true };
+      // 🏗️ infrastruktura: Trening center (hitrejše proge, kavelj 2×), Akademija (razvojna doba, poletna liga 2×), Hiša legend L3 (mentor za elite)
+      const iTren = (infra && infra.trening) || 0, iAka = (infra && infra.akademija) || 0, iLeg = (infra && infra.legende) || 0;
+      const ageMax = 23 + (iAka >= 2 ? 2 : iAka >= 1 ? 1 : 0);
+      const lrMul = state.leagueRule === "mladina" ? 1.2 : 1; // 📋 Mladinsko pravilo: +20 % razvoj
+      const pFac = (1 + (iTren >= 2 ? 0.3 : 0)) * lrMul, kFac = (1 + (iTren >= 1 ? 0.4 : 0)) * lrMul, sFac = (iAka >= 3 ? 2 : 1) * lrMul;
+      const growCard = (c, lane) => {
+        const ceil = c.th ?? c.potHigh, gap = (ceil ?? 0) - c.ovr;
+        if (!(c.rookie && c.age <= ageMax && gap > 0)) return c; // ni več v razvoju
+        const mentored = coach === "jj" || (c.tier === "proj" && hasVD) || (iLeg >= 3 && c.tier === "elite"); // mentor = polne minute tudi s klopi
+        const eff = lane === "klop" && mentored ? "peterka" : lane;
+        let s;
+        if (eff === "peterka") s = Math.max(2, R(Math.round(gap * 0.45), Math.round(gap * 0.7))) * pFac;
+        else if (eff === "klop") s = Math.max(1, R(Math.round(gap * 0.18), Math.round(gap * 0.4))) * kFac;
+        else s = R(1, Math.max(2, Math.round(gap * 0.12))) * sFac; // poletna liga — občutno počasneje
+        if (c.hook === "raketa" && eff === "peterka") s += R(0, Math.round(gap * 0.2)); // ⭑ Raketa
+        if (c.hook === "ucenec") s += 2; // ⭑ Učenec
+        if ((c.hook === "raketa" || c.hook === "ucenec") && iTren >= 3) s *= 2; // 🏋️ L3: kavelj šteje dvojno
+        const to = Math.min(ceil, c.ovr + Math.round(s));
+        const sulk = c.tier === "elite" && lane === "klop" && eff !== "peterka"; // 💎 na klopi brez minut → 😤 (ne velja mentor/poletna liga)
+        dev.push({ n: c.n, from: c.ovr, to, side, starter: eff === "peterka" && lane !== "summer", via: lane === "summer" ? "☀️" : eff === "peterka" ? "★" : "🎓", sulk });
+        let upd = { ...c, ovr: to };
         if (sulk) upd = { ...upd, pm: Math.min(-4, c.pm - 8), unhappy: true };
         return upd;
-      });
+      };
+      return {
+        roster: roster.map((c) => growCard(c, starterIds.has(c.id) ? "peterka" : "klop")),
+        summer: (summer || []).map((c) => growCard(c, "summer")),
+      };
     };
-    const st = { ...state, h: { ...state.h, roster: grow(state.h.roster, state.h.coach, state.injured.h, "h") }, a: { ...state.a, roster: grow(state.a.roster, state.a.coach, state.injured.a, "a") } };
+    const hg = grow(state.h.roster, state.h.summer, state.h.coach, state.injured.h, "h", state.h.starters, state.h.infra);
+    const ag = grow(state.a.roster, state.a.summer, state.a.coach, state.injured.a, "a", null, state.a.infra);
+    const st = { ...state, h: { ...state.h, roster: hg.roster, summer: hg.summer }, a: { ...state.a, roster: ag.roster, summer: ag.summer } };
     const seasonCap = capFor(st.season);
-    const hs = scoreRoster(st.h.roster, st.h.hand.length, st.finisher === "h", st.h.starters, st.h.picks, st.h.coach, st.injured.h, st.h.deadCap, st.philosophy && st.philosophy.h, seasonCap);
-    const as = scoreRoster(st.a.roster, st.a.hand.length, st.finisher === "a", null, st.a.picks, st.a.coach, st.injured.a, 0, st.philosophy && st.philosophy.a, seasonCap);
+    const hs = scoreRoster(st.h.roster, st.h.hand.length, st.finisher === "h", st.h.starters, st.h.picks, st.h.coach, st.injured.h, st.h.deadCap, st.philosophy && st.philosophy.h, seasonCap, infraScoreBonus(st.h, st.h.roster));
+    const as = scoreRoster(st.a.roster, st.a.hand.length, st.finisher === "a", null, st.a.picks, st.a.coach, st.injured.a, 0, st.philosophy && st.philosophy.a, seasonCap, infraScoreBonus(st.a, st.a.roster));
     // slot-vrednost pickov: slabša ekipa dobi dragocenejše (višje) picke
     const hBase = baseStrOf(hs), aBase = baseStrOf(as);
     const hSlot = slotTier(aBase - hBase), aSlot = slotTier(hBase - aBase);
@@ -1743,7 +1824,28 @@ export default function App() {
       const titles = { h: st.titles.h + (seasonWin === "h" ? 1 : 0), a: st.titles.a + (seasonWin === "a" ? 1 : 0) };
       const cum = { h: (st.cum ? st.cum.h : 0) + hs.total, a: (st.cum ? st.cum.a : 0) + as.total };
       const seasonLog = [...(st.seasonLog || []), { s: st.season, h: hs.total, a: as.total, w: seasonWin }];
-      setG({ ...st, result: { hs, as, dev, seasonWin }, totals: { h: hs.total, a: as.total }, titles, cum, seasonLog });
+      // 🧱 SKLAD prihodek ob koncu sezone: rezultat + Moneyball + razviti temelji (≥+4 OVR)
+      const skladGain = (side, sc) => {
+        let g2 = seasonWin === side ? 3 : seasonWin === null ? 2 : 1; // zmaga/izenačeno/poraz
+        if (sc.moneyball) g2 += 1;
+        g2 += dev.filter((d) => d.side === side && d.to - d.from >= 4).length; // vsak temelj z resnim skokom
+        if (st.leagueRule === "bogata") g2 += 2; // 📋 Bogata liga
+        return g2;
+      };
+      let hGain = skladGain("h", hs); const aGain = skladGain("a", as);
+      // 👔 Pričakovanja lastnika: cilj = tvoj rezultat S1 × 1.12^(sezona−1). Dosežen → +2🧱 +klic; zgrešen → lastnik obreže proračun (−1🧱).
+      const ownerBase = st.season === 1 ? hs.total : (st.ownerBase || hs.total);
+      const ownerTarget = st.season >= 2 ? Math.round(ownerBase * Math.pow(1.12, st.season - 1)) : null;
+      let ownerMet = null, ownerNote = "";
+      let hCalls = st.h.calls || [];
+      if (ownerTarget != null) {
+        ownerMet = hs.total >= ownerTarget;
+        if (ownerMet) { hGain += 2; if (hCalls.length < 3) hCalls = [...hCalls, randCall()]; ownerNote = `👔 Lastnik zadovoljen (cilj ${ownerTarget}): +2🧱${hCalls.length <= 3 ? " + klic" : ""}.`; }
+        else { hGain = Math.max(0, hGain - 1); ownerNote = `👔 Lastnik razočaran (cilj ${ownerTarget}, dosegel ${hs.total}): −1🧱, obrezan proračun.`; }
+      }
+      const nh = { ...st.h, sklad: (st.h.sklad || 0) + hGain, calls: hCalls };
+      const na = { ...st.a, sklad: (st.a.sklad || 0) + aGain };
+      setG({ ...st, h: nh, a: na, ownerBase, result: { hs, as, dev, seasonWin, skladGain: hGain, ownerTarget, ownerMet, ownerNote }, totals: { h: hs.total, a: as.total }, titles, cum, seasonLog, log: ownerNote ? [...st.log, ownerNote] : st.log });
       setScreen("score");
       return;
     }
@@ -1756,13 +1858,22 @@ export default function App() {
   const postAi = (ns, isFinal) => {
     if (ns.endNow) { endRound(ns); return; }
     if (isFinal) { endRound(ns); return; }
-    // 🩹 naključna poškodba (12 % po vsakem krogu, max 1 aktivna na GM-a)
-    if (!ns.finisher && Math.random() < 0.12) {
+    let offerInj = null; // ☎️ ponudi 🛡️ Zavarovanje, če je tvoj igralec poškodovan in klic držiš
+    // 🩺 Medicinski L3: tvoj poškodovanec se ob koncu poteze sam pozdravi
+    if (ns.injured.h && (ns.h.infra && ns.h.infra.medicinski) >= 3) {
+      const inj = ns.h.roster.find((c) => c.id === ns.injured.h);
+      ns = { ...ns, injured: { ...ns.injured, h: null }, log: [...ns.log, `🏗️ Medicinski center: ${inj ? surname(inj.n) : "igralec"} se je sam pozdravil.`] };
+    }
+    // 🩹 naključna poškodba (12 % po vsakem krogu; 📋 Pravilo lige lahko spremeni stopnjo)
+    const injRate = ns.leagueRule === "koledar" ? 0.18 : ns.leagueRule === "zdrava" ? 0.06 : 0.12;
+    if (!ns.finisher && Math.random() < injRate) {
       const pool = [];
       if (!ns.injured.h) ns.h.roster.forEach((c) => pool.push(["h", c]));
       if (!ns.injured.a) ns.a.roster.forEach((c) => pool.push(["a", c]));
       if (pool.length) {
         const [side, c] = pool[Math.floor(Math.random() * pool.length)];
+        if (side === "h" && (ns.h.infra && ns.h.infra.medicinski) >= 2 && Math.random() < 0.5) { /* 🏗️ Medicinski L2: −50 % tveganja — poškodba preprečena */ }
+        else {
         let h = ns.h;
         if (side === "h" && ns.h.starters[c.pos] === c.id) {
           const starters = { ...ns.h.starters };
@@ -1770,14 +1881,24 @@ export default function App() {
           if (alt) starters[c.pos] = alt.id; else delete starters[c.pos];
           h = { ...ns.h, starters };
         }
-        ns = { ...ns, h, injured: { ...ns.injured, [side]: c.id }, log: [...ns.log, `🩹 POŠKODBA: ${c.n} (${side === "h" ? "TVOJ" : "AI-jev"} igralec) do konca runde ne more v prvo peterko. Rehab stane ${ns.rehabUsed?.[side] ? 2 : 1}× 🥈.`] };
+        ns = { ...ns, h, injured: { ...ns.injured, [side]: c.id }, log: [...ns.log, `🩹 POŠKODBA: ${c.n} (${side === "h" ? "TVOJ" : "AI-jev"} igralec) do konca runde ne more v prvo peterko. Rehab stane ${rehabCostFor(ns, side)}× 🥈.`] };
         say(`🩹 Poškodba: ${c.n} (${side === "h" ? "tvoj igralec!" : "AI-jev igralec"})`);
+        if (side === "h" && ns.h.calls.includes("zavarovanje")) offerInj = c;
+        }
       }
     }
     if (ns.a.roster.length >= 10 && !ns.finisher) {
       ns = { ...ns, finisher: "a", finalFor: "h", banner: "AI je zaključil roster — to je tvoja ZADNJA poteza!", log: [...ns.log, "AI: »Roster zaključen!«"] };
     }
-    setG({ ...ns, h: { ...ns.h, tradeUsed: false, signedTurn: 0 }, turn: "h", phase: "draw" });
+    // ⏰ ROK ZA PRESTOPE: ko prvi GM doseže 8/10 rosterja (enkrat na sezono). AI simetrično dobi klic.
+    let openDeadline = null;
+    if (g.franchise && !ns.deadlineDone && !ns.finisher && (ns.h.roster.length >= 8 || ns.a.roster.length >= 8)) {
+      ns = { ...ns, deadlineDone: true, a: { ...ns.a, calls: (ns.a.calls || []).length < 3 ? [...ns.a.calls, randCall()] : ns.a.calls }, log: [...ns.log, "⏰ ROK ZA PRESTOPE — agencije kličejo!"] };
+      openDeadline = { offers: [randCall(), randCall(), randCall()] };
+    }
+    setG({ ...ns, discountNext: 0, callTurnUsed: 0, h: { ...ns.h, tradeUsed: false, signedTurn: 0 }, turn: "h", phase: "draw" });
+    if (offerInj) setInjOffer({ card: offerInj });
+    if (openDeadline) setDeadline(openDeadline);
   };
 
   const runAi = (state, isFinal) => {
@@ -1789,7 +1910,7 @@ export default function App() {
       const dc = ns.discardedCard;
       if (!ns.endNow && dc && dc.ovr >= AUCTION_OVR) {
         setBid({ f: 0, s: 0, w: 0 });
-        setG({ ...ns, auction: { card: dc, cont: "aiEnd", isFinal } });
+        setG({ ...ns, revealAiBid: null, auction: { card: dc, cont: "aiEnd", isFinal } });
         return;
       }
       postAi(ns, isFinal);
@@ -1841,9 +1962,17 @@ export default function App() {
     const r = aucReveal;
     if (!r) return;
     setAucReveal(null);
-    if (r.cont === "start" || r.cont === "resume") setG(r.ns);
-    else if (r.cont === "hDiscard") finishTurn(r.ns);
-    else if (r.cont === "aiEnd") postAi(r.ns, r.isFinal);
+    let ns = r.ns;
+    // ☎️ tolažba ob IZGUBLJENI dražbi (z neničelno ponudbo): agent ti ostane dolžan uslugo → nov klic
+    if (r.winner === "a" && r.hV > 0 && (ns.h.calls || []).length < 3) {
+      const nc = randCall();
+      ns = { ...ns, h: { ...ns.h, calls: [...ns.h.calls, nc] }, log: [...ns.log, `☎️ Tolažba: izgubil si dražbo, a agent ti dolguje uslugo — klic »${CALLS[nc].n}« v Rolodex.`] };
+      say(`☎️ Tolažilni klic: ${CALLS[nc].n}!`);
+    }
+    if (r.winner === "h" && r.aV > 0 && (ns.a.calls || []).length < 3) { ns = { ...ns, a: { ...ns.a, calls: [...ns.a.calls, randCall()] } }; } // AI simetrična tolažba
+    if (r.cont === "start" || r.cont === "resume") setG(ns);
+    else if (r.cont === "hDiscard") finishTurn(ns);
+    else if (r.cont === "aiEnd") postAi(ns, r.isFinal);
   };
 
   // ---- ČLOVEŠKE AKCIJE ----
@@ -1876,28 +2005,6 @@ export default function App() {
     setReveal(disc);
   };
 
-  // draft: prospekta z deske dobiš v roko za ceno picka (🥇 elite/projekt, 🥈 varni)
-  const rookieRound = (c) => c.tier === "safe" ? 2 : 1;
-  const draftProspect = (c) => {
-    const rd = rookieRound(c);
-    const used = rd === 1 ? g.draftUsed.h.f : g.draftUsed.h.s;
-    if (used >= 1) { say(`V tej rundi si že draftal igralca ${rd}. kroga (max 1 first + 1 second).`); return; }
-    const have = rd === 1 ? g.h.picks.f : g.h.picks.s;
-    if (have < 1) { say(`Za ${c.n} rabiš ${rd === 1 ? "🥇 pick 1. kroga" : "🥈 pick 2. kroga"}, ki ga nimaš.`); return; }
-    if (c.tier === "elite") {
-      const myBase = baseStrOf(scoreRoster(g.h.roster, 0, false, null, g.h.picks, g.h.coach, g.injured.h, g.h.deadCap));
-      const aiBase = baseStrOf(scoreRoster(g.a.roster, 0, false, null, g.a.picks, g.a.coach, g.injured.a, 0));
-      if (!slotTier(aiBase - myBase).top) { say(`💎 ${surname(c.n)} je top prospekt — dosegljiv le z zgodnjim slotom (moraš zaostajati). Zdaj imaš pozni pick. Zgradi počasneje ali vzemi 🌱 projekt.`); return; }
-    }
-    const picks = { ...g.h.picks };
-    if (rd === 1) picks.f -= 1; else picks.s -= 1;
-    const du = { ...g.draftUsed, h: { ...g.draftUsed.h, [rd === 1 ? "f" : "s"]: used + 1 } };
-    setG({ ...g, draftBoard: g.draftBoard.filter((x) => x.id !== c.id), draftUsed: du, h: { ...g.h, hand: [...g.h.hand, { ...c }], picks }, log: [...g.log, `🎫 DRAFT (${rd}. krog): izbral si ${c.n} — v tvoji roki, zdaj ga podpiši.`] });
-    setSel(c.id);
-    setDraftOpen(false);
-    say(`Draftal si ${surname(c.n)}! Surov in poceni — razvije se, če dobi minute. Podpiši ga spodaj.`);
-  };
-
   // ustanovni nabor: prospekt gre naravnost v roster kot temelj franšize; AI odgovori z lastnim izborom (P, A, P, A)
   const mkFounder = (c) => {
     let card = { ...c, contract: 3, developed: false };
@@ -1927,7 +2034,7 @@ export default function App() {
     setBigStamp("TEMELJ FRANŠIZE");
     setTimeout(() => SFX.thud(), 150);
     setTimeout(() => setBigStamp(null), 1100);
-    setG({ ...g, h: { ...g.h, roster: hRoster }, a: { ...g.a, roster: aRoster }, draftBoard: g.draftBoard.filter((x) => !goneSet.has(x.n)), rookieClass: (g.rookieClass || []).filter((x) => !goneSet.has(x.n)), founding: { board, hUsed, aUsed }, log: [...g.log, ...logs] });
+    setG({ ...g, h: { ...g.h, roster: hRoster }, a: { ...g.a, roster: aRoster }, rookieClass: (g.rookieClass || []).filter((x) => !goneSet.has(x.n)), founding: { board, hUsed, aUsed }, log: [...g.log, ...logs] });
     say(`Temelj ${hUsed}/2: ${surname(c.n)} je tvoj. ${hUsed >= 2 ? "Naprej na trg — zgradi okoli njiju." : "Izberi še enega."}`);
   };
 
@@ -1952,6 +2059,7 @@ export default function App() {
       say(`${surname(c0.n)} podpisan s ${discKind === "f" ? "🥇" : "🥈"} pickom: ${c0.sal} → ${newSal} M$ (cap olajšava).`);
     }
     const logs = [`Podpisal si: ${c0.n}${discKind ? ` (popust s ${discKind === "f" ? "🥇" : "🥈"} pickom)` : ""}.`];
+    if (g.discountNext) { const ns2 = Math.max(2, c.sal - g.discountNext); logs.push(`💸 Prišepnjen popust: ${c.sal} → ${ns2} M$.`); c = { ...c, sal: ns2, origSal: c.origSal ?? c0.sal, disc: true }; }
     if (c.rookie && c.tier === "safe" && !c.developed) {
       const to = Math.round((c.tl ?? c.potLow) + Math.random() * ((c.th ?? c.potHigh) - (c.tl ?? c.potLow)));
       logs.push(`🔒 ${c.n} je NBA-pripravljen: takoj zaigra z OVR ${to} (prej ${c.ovr}).`);
@@ -1959,7 +2067,7 @@ export default function App() {
       c = { ...c, ovr: to, developed: true };
     }
     SFX.pen();
-    setG({ ...g, h: { ...withSigned(g.h, c), picks, signedTurn: (g.h.signedTurn || 0) + 1 }, log: [...g.log, ...logs] });
+    setG({ ...g, discountNext: 0, h: { ...withSigned(g.h, c), picks, signedTurn: (g.h.signedTurn || 0) + 1 }, log: [...g.log, ...logs] });
     setSel(null);
     setStamp({ id: c.id, txt: "PODPISANO" });
     setTimeout(() => SFX.thud(), 180);
@@ -1972,8 +2080,42 @@ export default function App() {
     const ns = { ...g, hDisc: [...g.hDisc, c], h: { ...g.h, hand: g.h.hand.filter((x) => x.id !== c.id) }, log: [...g.log, `Odpustil si: ${c.n} (AI ga lahko vzame s popustom).`] };
     SFX.swish();
     setSel(null);
-    if (c.ovr >= AUCTION_OVR) { setBid({ f: 0, s: 0, w: 0 }); setG({ ...ns, auction: { card: c, cont: "hDiscard" } }); return; }
+    if (c.ovr >= AUCTION_OVR) { setBid({ f: 0, s: 0, w: 0 }); setG({ ...ns, revealAiBid: null, auction: { card: c, cont: "hDiscard" } }); return; }
     finishTurn(ns);
+  };
+
+  // ☎️ odigraj klic iz Rolodexa. reaction klici (zavarovanje/zadnja) se igrajo v svojem oknu, ne od tod.
+  const callEligible = (id) => {
+    if (id === "drbine" || id === "zavarovanje") return !!g.injured.h;
+    if (id === "kava") return g.h.roster.some((c) => c.unhappy);
+    if (id === "aneks") return g.h.roster.length > 0;
+    return true;
+  };
+  const playCall = (id, target) => {
+    if (!g.h.calls.includes(id)) return;
+    if ((g.callTurnUsed || 0) >= 1 && CALLS[id].kind !== "reaction") { say("Na potezo lahko odigraš le 1 klic."); return; }
+    const rmCall = (gg) => ({ ...gg, h: { ...gg.h, calls: gg.h.calls.filter((x, i) => i !== gg.h.calls.indexOf(id)) }, callTurnUsed: (gg.callTurnUsed || 0) + 1 });
+    let ng = rmCall(g), msg = "";
+    if (id === "drbine") { if (!g.injured.h) { say("Nisi poškodovan."); return; } ng = { ...ng, injured: { ...ng.injured, h: null } }; msg = "🩺 Dr. Bine: tvoj igralec je spet zdrav."; }
+    else if (id === "usluga") { ng = { ...ng, h: { ...ng.h, calls: ng.h.calls, picks: { ...ng.h.picks, s: ng.h.picks.s + 1 } } }; msg = "🥈 Usluga iz lige: +1× 🥈 pick."; }
+    else if (id === "popust") { ng = { ...ng, discountNext: 8 }; msg = "💸 Naslednji podpis to potezo bo −8 M$."; }
+    else if (id === "hitra") { if (!g.deck.length) { say("Kup je prazen."); return; } const [card, ...rest] = g.deck; ng = { ...ng, deck: rest, h: { ...ng.h, hand: [...ng.h.hand, card] } }; msg = `⚡ Hitra poteza: potegnil si ${surname(card.n)} v roko.`; setSel(card.id); }
+    else if (id === "kava") { if (!target) { setCallModal({ id }); return; } const { unhappy: _u, basePm: _b, unhappyCause: _c, ...rest } = target; ng = { ...ng, h: { ...ng.h, roster: ng.h.roster.map((c) => c.id === target.id ? { ...rest, pm: target.basePm != null ? target.basePm : target.pm } : c) } }; msg = `😌 ${surname(target.n)} je spet zadovoljen.`; }
+    else if (id === "aneks") { if (!target) { setCallModal({ id }); return; } ng = { ...ng, h: { ...ng.h, roster: ng.h.roster.map((c) => c.id === target.id ? { ...c, contract: (c.contract ?? 1) + 1 } : c) } }; msg = `🖋️ ${surname(target.n)}: pogodba +1 leto.`; }
+    else if (id === "neznana") { const r = Math.random(); if (r < 0.15) { msg = "☎️ Klic v prazno — nič se ni zgodilo."; } else if (r < 0.5) { ng = { ...ng, h: { ...ng.h, picks: { ...ng.h.picks, s: ng.h.picks.s + 2 } } }; msg = "☎️ Skrivni pokrovitelj: +2× 🥈 pick!"; } else if (r < 0.8) { ng = { ...ng, discountNext: 12 }; msg = "☎️ Zveza na vrhu: naslednji podpis −12 M$."; } else { const u = g.h.roster.find((c) => c.unhappy); if (u) { const { unhappy: _u, basePm: _b, unhappyCause: _c, ...rest } = u; ng = { ...ng, h: { ...ng.h, roster: ng.h.roster.map((c) => c.id === u.id ? { ...rest, pm: u.basePm != null ? u.basePm : u.pm } : c) } }; msg = `☎️ Skrivni mediator: ${surname(u.n)} pomirjen.`; } else { ng = { ...ng, h: { ...ng.h, picks: { ...ng.h.picks, f: ng.h.picks.f + 1 } } }; msg = "☎️ Zlati stik: +1× 🥇 pick!"; } } }
+    SFX.card();
+    setCallModal(null);
+    setG({ ...ng, log: [...ng.log, msg] });
+    say(msg);
+  };
+
+  const resolveDeadline = (choice) => {
+    if (choice === "sklad") { setG({ ...g, h: { ...g.h, sklad: (g.h.sklad || 0) + 2 }, log: [...g.log, "⏰ Rok za prestope: vzel si +2🧱 v sklad."] }); say("⏰ +2🧱 v sklad."); setDeadline(null); return; }
+    if ((g.h.calls || []).length >= 3) { setG({ ...g, h: { ...g.h, sklad: (g.h.sklad || 0) + 2 }, log: [...g.log, "⏰ Rolodex poln — namesto klica +2🧱."] }); say("Rolodex poln — dobil si +2🧱."); setDeadline(null); return; }
+    SFX.card();
+    setG({ ...g, h: { ...g.h, calls: [...g.h.calls, choice] }, log: [...g.log, `⏰ Rok za prestope: v Rolodex si vzel »${CALLS[choice].n}«.`] });
+    say(`☎️ ${CALLS[choice].n} v Rolodex!`);
+    setDeadline(null);
   };
 
   const finishTurn = (ns) => {
@@ -2010,7 +2152,7 @@ export default function App() {
     let ns = { ...g, hDisc: [...g.hDisc, c], injured, h: { ...g.h, roster: rem.roster, starters, deadCap: (g.h.deadCap || 0) + dead }, log: [...g.log, `✂️ WAIVE: odpustil si ${c.n} (AI ga lahko vzame s popustom) — dead cap +${dead} M$ do konca runde.`, ...(rem.freed.length ? [`😊 ${rem.freed.join(", ")} spet zadovoljen — vzrok nezadovoljstva odpravljen.`] : [])] };
     SFX.thanks();
     setWaiveTarget(null); setWaiveMode(false);
-    if (c.ovr >= AUCTION_OVR) { setBid({ f: 0, s: 0, w: 0 }); setG({ ...ns, auction: { card: c, cont: "resume" } }); return; }
+    if (c.ovr >= AUCTION_OVR) { setBid({ f: 0, s: 0, w: 0 }); setG({ ...ns, revealAiBid: null, auction: { card: c, cont: "resume" } }); return; }
     // obupan izhod: po waivu potegneš 1 karto iz skritega kupa (npr. loviš manjkajočo pozicijo)
     if (ns.deck.length > 0) {
       const drawn = ns.deck[ns.deck.length - 1];
@@ -2024,7 +2166,7 @@ export default function App() {
   };
 
   const heal = () => {
-    const rc = g.rehabUsed?.h ? 2 : 1;
+    const rc = rehabCostFor(g, "h");
     if (g.h.picks.s < rc) { say(`Nimaš ${rc}× 🥈 picka za rehab.`); setRehab(null); return; }
     setG({ ...g, injured: { ...g.injured, h: null }, rehabUsed: { ...(g.rehabUsed || { h: false, a: false }), h: true }, h: { ...g.h, picks: { ...g.h.picks, s: g.h.picks.s - rc } }, log: [...g.log, `Rehab: ${rehab.n} je spet zdrav (porabljeno ${rc}× 🥈).`] });
     say(`💪 ${surname(rehab.n)} je spet zdrav!`);
@@ -2077,11 +2219,12 @@ export default function App() {
       @import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=Barlow+Condensed:wght@500;600;700&display=swap');
       .fo * { box-sizing: border-box; margin: 0; }
       .fo { font-family:'Barlow Condensed','Arial Narrow',Arial,sans-serif; min-height:100vh; color:#1d2433;
-        background: repeating-linear-gradient(90deg,#dcc296 0 46px,#d4b888 46px 92px); }
+        background:#dcc296 url('/img/tex-karton-v1.jpg'); background-size:420px; } /* prava kartonska tekstura (ChatGPT) */
       .wrap { max-width:520px; margin:0 auto; padding:10px 10px 92px; }
       .hdr { background-color:#152744; background-image:radial-gradient(rgba(255,255,255,.07) 1px, transparent 1.5px); background-size:7px 7px; color:#F5EBDC; border-radius:12px; padding:10px 14px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 3px 0 #0c1830; }
       .hdr h1 { font-family:'Archivo Black','Arial Black',sans-serif; font-size:17px; letter-spacing:1px; }
       .hdr .sub { font-size:12px; opacity:.75; }
+      .sklad-chip { background:#3a2a5c; color:#F0B429; font-weight:800; font-size:13px; padding:2px 8px; border-radius:8px; white-space:nowrap; }
       .score-strip { display:flex; gap:10px; font-size:15px; font-weight:700; text-align:center; }
       .score-strip b { color:#F0B429; font-size:18px; display:block; }
       .panel { background:linear-gradient(180deg,#fffdf7,#faf5e8); border-radius:12px; padding:10px; margin-top:10px; box-shadow: inset 0 1px 0 #fff, 0 2px 6px rgba(20,25,40,.15), 0 1px 0 #d8cdb8; }
@@ -2147,6 +2290,12 @@ export default function App() {
       .pile-empty { font-size:13px; color:#8a7c63; align-self:center; }
       .lbl-sub { text-transform:none; letter-spacing:0; font-weight:500; color:#8a7c63; font-size:12px; }
       .coach-chip { display:inline-flex; align-items:center; gap:6px; background:#f2e9d4; border:1px solid #e0d5bc; border-radius:999px; padding:3px 12px; font-family:inherit; font-size:13px; color:#4a4232; cursor:pointer; margin-bottom:8px; }
+      .rolodex { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin:2px 0 8px; }
+      .rolo-lbl { font-family:'Archivo Black','Arial Black',sans-serif; font-size:11px; color:#3a2a5c; letter-spacing:.5px; }
+      .rolo-empty { font-size:11.5px; color:#8a7c63; }
+      .call-chip { display:inline-flex; align-items:center; gap:4px; background:#3a2a5c; color:#F5EBDC; border:1px solid #F0B429; border-radius:999px; padding:4px 11px; font-family:inherit; font-size:12.5px; font-weight:700; cursor:pointer; animation:fopulse 2.4s ease-in-out infinite; }
+      .call-chip.dim { opacity:.5; filter:grayscale(.5); animation:none; }
+      .call-chip.react { background:#5a4a2c; border-color:#c9992a; animation:none; }
       .coach-chip b { color:#152744; }
       .coach-chip:hover, .coach-chip:focus-visible { border-color:#E4762B; }
       .ico-btn { display:inline-flex; align-items:center; justify-content:center; gap:6px; line-height:1.2; }
@@ -2154,10 +2303,8 @@ export default function App() {
       .deckbtn { position:relative; flex:0 0 112px; min-height:214px; margin:10px 12px 16px 0; color:#F5EBDC; border:2px solid #33507e; border-radius:12px;
         font-family:'Archivo Black','Arial Black',sans-serif; font-size:13px; cursor:pointer; padding:12px 8px; line-height:1.2;
         display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px;
-        background:
-          repeating-linear-gradient(45deg, rgba(240,180,41,.14) 0 5px, transparent 5px 10px),
-          repeating-linear-gradient(-45deg, rgba(240,180,41,.14) 0 5px, transparent 5px 10px),
-          linear-gradient(155deg, #26426f, #101f38);
+        background: linear-gradient(rgba(16,31,56,.45), rgba(16,31,56,.45)), url('/img/cardback-v1.jpg') center/cover, linear-gradient(155deg, #26426f, #101f38); /* prava ilustracija hrbta (ChatGPT) + tančica za berljivost napisa */
+        text-shadow:0 1px 3px rgba(0,0,0,.8);
         box-shadow:
           inset 0 0 0 4px #101f38, inset 0 0 0 5px rgba(240,180,41,.32),
           4px 5px 0 0 #16294a, 4px 5px 0 2px #33507e,
@@ -2252,6 +2399,8 @@ export default function App() {
       .bidsum { text-align:center; font-family:'Archivo Black','Arial Black',sans-serif; font-size:18px; color:#152744; margin-top:10px; }
       .auc-card { display:flex; justify-content:center; margin:8px 0; }
       .tr-col { max-height:230px; overflow-y:auto; display:flex; flex-wrap:wrap; gap:6px; padding:4px; background:#f7f1e2; border-radius:10px; }
+      .found-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(340px, 1fr)); gap:10px; padding:4px; background:#f7f1e2; border-radius:10px; }
+      .found-cell { display:flex; align-items:center; gap:8px; background:#fffdf7; border-radius:10px; padding:6px; box-shadow:inset 0 1px 0 #fff, 0 1px 3px rgba(20,25,40,.12); }
       .bd { background:#fffdf7; border-radius:12px; padding:12px; flex:1; min-width:230px; }
       .bd-title { font-family:'Archivo Black','Arial Black',sans-serif; color:#152744; margin-bottom:8px; font-size:15px; }
       .bd-five { display:flex; flex-direction:column; gap:3px; margin-bottom:8px; font-size:13px; }
@@ -2324,6 +2473,8 @@ export default function App() {
           linear-gradient(155deg, #26426f, #101f38);
         box-shadow: inset 0 0 0 4px #101f38, inset 0 0 0 5px rgba(240,180,41,.32); }
       .card-back svg { width:56px; height:56px; opacity:.9; }
+      .card-back { position:relative; overflow:hidden; }
+      .card-back-img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; border-radius:8px; }
       .card-back.tell { animation: fotell .6s ease-in-out infinite; }
       @keyframes fotell { 50% { box-shadow: inset 0 0 0 4px #101f38, inset 0 0 0 5px rgba(240,180,41,.32), 0 0 24px 6px rgba(240,180,41,.75); } }
       .flip-info { opacity:0; transition:opacity .3s ease .15s; }
@@ -2371,9 +2522,8 @@ export default function App() {
       .slam-flash { position:fixed; inset:0; background:#fff; z-index:70; pointer-events:none; animation: foflashout .35s ease-out forwards; }
       @keyframes foflashout { from{opacity:.85;} to{opacity:0;} }
       @keyframes fofadein { from { opacity:0; } }
-      /* premium: zrno papirja čez celo igro */
-      .fo::before { content:""; position:fixed; inset:0; pointer-events:none; opacity:.05; z-index:0;
-        background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E"); }
+      /* premium: prava kartonska tekstura je zdaj na .fo (glej zgoraj) — SVG šum ni več potreben */
+      .trophy-art { display:block; width:100%; max-width:320px; margin:10px auto; border-radius:14px; border:3px solid #c9992a; box-shadow:0 6px 18px rgba(160,120,20,.4); }
       /* meni kot plakat tekme */
       .menu { position:relative; overflow:hidden; }
       .menu-ball { position:absolute; top:-30px; left:50%; width:340px; height:340px; margin-left:-170px; opacity:.10; pointer-events:none; animation: fospinslow 90s linear infinite; }
@@ -2513,15 +2663,17 @@ export default function App() {
     return (
       <div className="fo">{css}
         <div className="wrap">
-          <div className="hdr"><h1>{fr ? `SEZONA ${g.season}/${g.seasons} — OBRAČUN` : `RUNDA ${g.round} — OBRAČUN`}</h1><div className="score-strip">{fr ? <><span>naslovi<b>TI {g.titles.h} : {g.titles.a} AI</b></span><span>seštevek<b>{g.cum ? g.cum.h : 0}</b></span></> : <span>cilj<b>{TARGET}</b></span>}</div></div>
+          <div className="hdr"><h1>{fr ? `SEZONA ${g.season}/${g.seasons} — OBRAČUN` : `RUNDA ${g.round} — OBRAČUN`}</h1><div className="score-strip">{fr ? <><span>naslovi<b>TI {g.titles.h} : {g.titles.a} AI</b></span><span>seštevek<b>{g.cum ? g.cum.h : 0}</b></span><span>🧱 sklad<b>{g.h.sklad || 0}{g.result && g.result.skladGain ? ` (+${g.result.skladGain})` : ""}</b></span></> : <span>cilj<b>{TARGET}</b></span>}</div></div>
           {fr
             ? <>{g.result.seasonWin === "h" && <Confetti />}<div className="win-banner">{g.result.seasonWin === "h" ? "🏆 NASLOV je tvoj to sezono!" : g.result.seasonWin === "a" ? "AI GM osvoji sezono." : "Sezona izenačena."}</div></>
             : g.champion ? (
             <div className="win-banner">🏆 {g.champion === "h" ? "TI SI PRVAK LIGE!" : g.champion === "a" ? "AI GM JE PRVAK LIGE." : "Izenačeno na vrhu!"}</div>
           ) : winner && <div className="win-banner">Rundo dobi: {winner} (+{Math.abs(hs.total - as.total)})</div>}
-          {fr && !frDone && g.result.seasonWin !== "h" && <div className="win-banner" style={{ background: "#3a2a5c", color: "#F5EBDC", fontFamily: "'Barlow Condensed','Arial Narrow',sans-serif", fontWeight: 700, fontSize: 15, lineHeight: 1.35 }}>🎰 DRAFT LOTERIJA — ker nisi osvojil sezone, v prestopnem roku <b style={{ color: "#F0B429" }}>IZBIRAŠ PRVI</b>! Priložnost, da uloviš mladega temeljnega kamna prihodnosti.</div>}
+          {fr && g.result.ownerNote && <div className="win-banner" style={{ background: g.result.ownerMet ? "#1f7a3d" : "#7a2a2a", color: "#F5EBDC", fontFamily: "'Barlow Condensed','Arial Narrow',sans-serif", fontWeight: 700, fontSize: 15, lineHeight: 1.35 }}>{g.result.ownerNote}</div>}
+          {fr && !frDone && g.result.ownerTarget == null && g.season === 1 && <div className="hint" style={{ textAlign: "center" }}>👔 Lastnik je postavil merilo: tvoj rezultat <b>{hs.total}</b>. Prihodnje sezone pričakuje <b>+12 % vsako leto</b> — motor infrastrukture in temeljev naj ti to omogoči.</div>}
           {frDone && (heroWin ? <TrophyRaise /> : <BallRim />)}
           {frDone && <div className="win-banner" style={{ background: frWinner === "h" ? "#1f7a3d" : frWinner === "a" ? "#7a2a2a" : "#555" }}>KONEC FRANŠIZE — {frWinner === "h" ? `DINASTIJA! Osvojil si ${g.titles.h} od ${g.seasons} naslovov.` : frWinner === "a" ? `AI GM je vladal (${g.titles.a}/${g.seasons}).` : `Izenačeno ${g.titles.h}:${g.titles.a}.`} · Tvoj seštevek: <b>{g.cum ? g.cum.h : 0} tč</b></div>}
+          {frDone && frWinner === "h" && <img className="trophy-art" src="/img/trofeja-v1.jpg" alt="Pokal dinastije" onError={(e) => { e.target.style.display = "none"; }} />}
           {frDone && g.seasonLog && g.seasonLog.length > 0 && (
             <div className="slog">
               {g.seasonLog.map((r) => (
@@ -2547,7 +2699,7 @@ export default function App() {
             <div className="dev-box">
               <div className="dev-hd">🌱 RAZVOJ ROOKIEJEV</div>
               {g.result.dev.map((d, i) => <DevRow key={i} d={d} i={i} />)}
-              <div className="dev-note">★ štartar raste proti stropu · 🎓 mentor/coach omogoči rast s klopi · 😤 = 💎 elitni brez minut: dno potenciala in vpliv pade (nezadovoljen).</div>
+              <div className="dev-note">★ peterka raste najhitreje · 🎓 klop/mentor srednje · ☀️ poletna liga najpočasneje · 😤 = 💎 elitni na klopi brez minut (nezadovoljen). Mladi rastejo vsako sezono, dokler so pod stropom.</div>
             </div>
           )}
           <div style={{ display: "flex", gap: 10, marginTop: 10, flexWrap: "wrap" }}>
@@ -2595,14 +2747,14 @@ export default function App() {
       <div className="fo">{css}
         <div className="wrap">
           <div className="hdr"><h1>🏗️ USTANOVNI NABOR</h1></div>
-          <div className="hint" style={{ marginBottom: 8 }}>Vsaka dinastija se začne z <b>draftom</b>. Izberi <b>2 mlada temelja</b> — okoli njiju boš gradil ekipo na trgu, z leti pa se razvijeta v tvoje zvezdnike. {g.classInfo && <>Letnik je <b>{g.classInfo.strength}</b> ({g.classInfo.elites}×💎). </>}Ti in nasprotnik izbirata izmenično.</div>
+          <div className="hint" style={{ marginBottom: 8 }}>Vsaka dinastija se začne z <b>draftom</b> — in to je <b>edini draft v celi dinastiji</b>. Izbereš <b>2 mlada temelja</b>, ki ju nato neguješ vseh {g.seasons || 3} sezon; okoli njiju gradiš ekipo na trgu. {g.classInfo && <>Letnik je <b>{g.classInfo.strength}</b> ({g.classInfo.elites}×💎). </>}Ti in nasprotnik izbirata izmenično.</div>
           <div className="hint" style={{ margin: "0 0 8px" }}><b>Posli:</b> 💎 Elitni — najvišji strop, a zahteva minute v peterki · 🌱 Projekt — raste ob mentorju (⭐/coach) · 🔒 Pripravljen — zaigra takoj. Potencialni razpon je viden, dejanski razvoj je loterija znotraj njega.</div>
           <div className="hint" style={{ color: "#7a4fd0", margin: "0 0 6px" }}>Tvoji temelji: <b>{fb.hUsed}/2</b>{myFounders.length > 0 && <> — {myFounders.map((c) => `${surname(c.n)} (${ROOK_TIER[c.tier].ico})`).join(", ")}</>} · Nasprotnik: <b>{fb.aUsed}/2</b></div>
           <div className="panel">
             <div className="lbl">Razpoložljivi prospekti</div>
-            <div className="tr-col">
+            <div className="found-grid">
               {fb.board.map((c) => (
-                <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", opacity: fb.hUsed >= 2 ? 0.5 : 1 }}>
+                <div key={c.id} className="found-cell" style={{ opacity: fb.hUsed >= 2 ? 0.5 : 1 }}>
                   <PlayerCard c={c} mini onClick={() => setOffInfo(c)} />
                   <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
                     <div className="pot" style={{ color: ROOK_TIER[c.tier].col, fontSize: 12 }}><Ico k={c.tier} s={13} /> {ROOK_TIER[c.tier].n} · potencial {c.potLow}–{c.potHigh}{c.hook && HOOKS[c.hook] ? ` · ⭑ ${HOOKS[c.hook].n}` : ""}</div>
@@ -2637,13 +2789,42 @@ export default function App() {
   }
 
   if (screen === "offseason" && offseason) {
-    const { hExp, hKeepAuto, aRoster, decisions, draftClass, humanFirst, hDraftPicks, hDraftUsed } = offseason;
+    const { hExp, hKeepAuto, aRoster, decisions, hSummer, summerSel } = offseason;
+    const sSel = summerSel || {};
+    const devEligible = (c) => c.rookie && c.age <= 23 && (c.th ?? c.potHigh ?? 0) > c.ovr;
+    const youngPool = [...hKeepAuto, ...(hSummer || [])].filter(devEligible);
     const nextCap = capFor(g.season + 1);
     const projectedSal = effSalary([...hKeepAuto, ...hExp.filter((c) => decisions[c.id]).map((c) => ({ ...c, sal: resignSal(c) }))], null);
     return (
       <div className="fo">{css}
         <div className="wrap">
           <div className="hdr"><h1>PRESTOPNI ROK · po sezoni {g.season}</h1></div>
+          {offseason.nextRule && <div className="win-banner" style={{ background: "#2a3a5c", color: "#F5EBDC", fontSize: 14.5, lineHeight: 1.35 }}>📋 PRAVILO LIGE za sezono {g.season + 1}: {LEAGUE_RULES[offseason.nextRule].ico} <b>{LEAGUE_RULES[offseason.nextRule].n}</b> — {LEAGUE_RULES[offseason.nextRule].d} <span style={{ opacity: .8 }}>Gradi z mislijo nanj.</span></div>}
+          {/* 🏗️ FRANŠIZNA INFRASTRUKTURA — drugi tir gradnje */}
+          <div className="panel" style={{ borderColor: "#3a2a5c" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+              <div className="lbl" style={{ margin: 0, color: "#7a4fd0" }}>🏗️ Franšizna infrastruktura</div>
+              <span className="sklad-chip">🧱 {g.h.sklad || 0}</span>
+            </div>
+            <div className="hint" style={{ margin: "0 0 8px" }}>Gradiš čez sezone z 🧱 <b>SKLADOM</b> (služiš ga z igranjem + žetvijo neporabljenih pickov{offseason.harvest ? `, letos +${offseason.harvest}🧱` : ""}). Vsaka nadgradnja trajno spremeni pravila tvoje ekonomije. <b>L3</b> se razkrije šele pri L2.</div>
+            <div className="found-grid">
+              {(g.infraOffer || ["trening"]).map((id) => {
+                const inf = INFRA[id]; if (!inf) return null;
+                const lvl = (g.h.infra && g.h.infra[id]) || 0;
+                const nextCost = lvl < 3 ? INFRA_COST[lvl + 1] : null;
+                const canUp = lvl < 3 && (g.h.sklad || 0) >= nextCost;
+                return (
+                  <div key={id} className="found-cell" style={{ alignItems: "flex-start", flexDirection: "column", gap: 6 }}>
+                    <div style={{ fontWeight: 800, fontSize: 13.5 }}>{inf.ico} {inf.n} <span style={{ color: "#7a4fd0" }}>· {["—", "L1", "L2", "L3"][lvl]}</span></div>
+                    <ul style={{ margin: 0, paddingLeft: 16, fontSize: 11.5, lineHeight: 1.35 }}>
+                      {inf.d.map((t, i) => <li key={i} style={{ color: i < lvl ? "#215c26" : i === lvl ? "#1d2433" : "#a99", fontWeight: i === lvl ? 700 : 400 }}>{i === 2 && lvl < 2 ? "🔒 Načrti: ???" : `L${i + 1}: ${t}`}{i < lvl ? " ✓" : ""}</li>)}
+                    </ul>
+                    <button className="abtn sign" style={{ width: "100%" }} disabled={!canUp} onClick={() => upgradeInfra(id)}>{lvl >= 3 ? "Zgrajeno (L3)" : `Nadgradi na L${lvl + 1} (${nextCost}🧱)`}</button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
           <div className="hint" style={{ marginBottom: 8 }}>Pogodbam je poteklo leto. Igralci brez pogodbe (spodaj) postanejo prosti — <b>podaljšaj</b> (svoje igralce dobiš z <b>−15 % zvestobe</b>, Bird pravica — a zvezdniki 90+ pri 30+ letih zahtevajo polno tržno ceno!) ali <b>pusti oditi</b>. Obstoječim pogodbam plača zraste +5 %. Cap raste na <b>{nextCap} M$</b> to sezono — če preplačaš, te davek požre v točkah.</div>
           {offseason.ageReport && offseason.ageReport.length > 0 && (() => {
             const grp = (side) => offseason.ageReport.filter((r) => r.side === side);
@@ -2661,7 +2842,7 @@ export default function App() {
                 {hRows.length ? renderRows(hRows) : <div className="dev-row" style={{ opacity: .6 }}><span>Brez sprememb</span></div>}
                 <div className="age-sub" style={{ color: "#e0a94f", marginTop: 6 }}>▸ NASPROTNIK</div>
                 {aRows.length ? renderRows(aRows) : <div className="dev-row" style={{ opacity: .6 }}><span>Brez sprememb</span></div>}
-                <div className="dev-note">Mladi (≤23) rastejo z minutami, veterani (31+) upadajo; pri ~34 in nizkem OVR se upokojijo → mesto se sprosti.</div>
+                <div className="dev-note">Mladi (≤23) rastejo prek minut (glej obračun — ★/🎓/☀️), veterani (31+) zdaj hitreje upadajo; pri ~34 in nizkem OVR se upokojijo → mesto se sprosti.</div>
               </div>
             );
           })()}
@@ -2712,26 +2893,30 @@ export default function App() {
               </div>
             </div>
           )}
-          <div className="panel">
-            <div className="lbl">🎫 DRAFT {2026 + g.season} · {humanFirst ? "🎰 lani si izgubil — draftaš PRVI!" : "zmagal si lani — AI je vzel prvi izbor"}</div>
-            <div className="hint" style={{ margin: "0 0 8px" }}>{g.classInfo && <>Letnik je <b>{g.classInfo.strength}</b> ({g.classInfo.elites}×💎) — vsako sezono se prospekti razlikujejo. </>}Izberi <b>1</b> prospekta 1. kroga (💎/🌱) in <b>1</b> 2. kroga (🔒). Draftani (📄3, poceni) se pridružijo naslednjo sezono. <b>Posli:</b> 💎 zahteva peterko (sicer 😤) · 🌱 raste ob mentorju (⭐/JJ) · 🔒 pride pripravljen. Izbral si: 1.krog {hDraftUsed.f}/1 · 2.krog {hDraftUsed.s}/1.</div>
-            {hDraftPicks.length > 0 && <div className="hint" style={{ color: "#7a4fd0" }}>Tvoji izbori: {hDraftPicks.map((c) => `${surname(c.n)} (${ROOK_TIER[c.tier].ico})`).join(", ")}</div>}
-            <div className="tr-col">
-              {draftClass.map((c) => {
-                const rd = c.tier === "safe" ? 2 : 1;
-                const usedUp = rd === 1 ? hDraftUsed.f >= 1 : hDraftUsed.s >= 1;
-                return (
-                  <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", opacity: usedUp ? 0.5 : 1 }}>
-                    <PlayerCard c={c} mini onClick={() => setOffInfo(c)} />
-                    <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
-                      <button className="abtn sign" disabled={usedUp} onClick={() => offDraft(c)}>{usedUp ? `${rd}. krog izbran` : `Draftaj (${rd === 1 ? "🥇 1." : "🥈 2."} krog)`}</button>
+          {youngPool.length > 0 && (
+            <div className="panel">
+              <div className="lbl">☀️ Poletna liga — razvoj mladih</div>
+              <div className="hint" style={{ margin: "0 0 8px" }}>Vsak mladec raste, <b>dokler dobiva minute</b>: najhitreje v <b>prvi peterki</b>, srednje na <b>klopi</b>. Lahko ga pošlješ v <b>☀️ poletno ligo</b> — naslednjo sezono ni na voljo (sprosti mesto v rosterju), a še vedno <b>počasi raste</b>. Idealno, ko surovca še nočeš igrati, a ne želiš zavreči mesta.</div>
+              <div className="found-grid">
+                {youngPool.map((c) => {
+                  const inSummer = !!sSel[c.id];
+                  const ceil = c.th ?? c.potHigh;
+                  return (
+                    <div key={c.id} className="found-cell">
+                      <PlayerCard c={c} mini onClick={() => setOffInfo(c)} />
+                      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
+                        <div className="pot" style={{ color: ROOK_TIER[c.tier].col, fontSize: 12 }}><Ico k={c.tier} s={13} /> OVR {c.ovr} → strop ~{ceil} · {c.age} let</div>
+                        <div style={{ display: "flex", gap: 4 }}>
+                          <button className={"abtn " + (!inSummer ? "sign" : "ghost")} style={{ flex: 1 }} onClick={() => setOffseason({ ...offseason, summerSel: { ...sSel, [c.id]: false } })}>V rosterju</button>
+                          <button className={"abtn " + (inSummer ? "sign" : "ghost")} style={{ flex: 1 }} onClick={() => setOffseason({ ...offseason, summerSel: { ...sSel, [c.id]: true } })}>☀️ Poletna liga</button>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-              {draftClass.length === 0 && <div style={{ fontSize: 13, color: "#8a7c63" }}>Razred izčrpan.</div>}
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
           <div className="mrow"><button className="bigbtn" style={{ flex: 1 }} onClick={finalizeOffseason}>Sezona {g.season + 1} →</button></div>
           {offInfo && (
             <div className="modal-bg" onClick={() => setOffInfo(null)}>
@@ -2763,14 +2948,13 @@ export default function App() {
   const coachPending = !philPending && !g.h.coach;
   const myEff = effSalary(g.h.roster, g.h.coach);
   const capNow = capFor(g.season);
-  const proj = scoreRoster(g.h.roster, 0, false, g.h.starters, g.h.picks, g.h.coach, g.injured.h, g.h.deadCap, g.philosophy && g.philosophy.h, capNow);
+  const proj = scoreRoster(g.h.roster, 0, false, g.h.starters, g.h.picks, g.h.coach, g.injured.h, g.h.deadCap, g.philosophy && g.philosophy.h, capNow, infraScoreBonus(g.h, g.h.roster));
   const starterCards = Object.values(proj.starters);
   // ocena rosterja (najboljša peterka) — za mejni prispevek igralca
   const rScore = (roster, side) => scoreRoster(roster, 0, false, null, g[side].picks, g[side].coach, g.injured[side], side === "h" ? (g.h.deadCap || 0) : 0, null, capNow).total;
   const addValue = (roster, card, side) => rScore([...roster, card], side) - rScore(roster, side); // koliko doda nov igralec
   const contribOf = (roster, card, side) => rScore(roster, side) - rScore(roster.filter((c) => c.id !== card.id), side); // koliko že prispeva
-  const aiProj = scoreRoster(g.a.roster, 0, false, null, g.a.picks, g.a.coach, g.injured.a, 0, g.philosophy && g.philosophy.a, capNow);
-  const mySlot = slotTier(baseStrOf(aiProj) - baseStrOf(proj)); // moj draft slot (zaostajam = boljši)
+  const aiProj = scoreRoster(g.a.roster, 0, false, null, g.a.picks, g.a.coach, g.injured.a, 0, g.philosophy && g.philosophy.a, capNow, infraScoreBonus(g.a, g.a.roster));
   const drawPhase = g.phase === "draw" && !aiThinking && !g.auction && !coachPending && !philPending;
   const actPhase = g.phase === "action" && !aiThinking && !g.auction && !coachPending && !philPending;
   const aucCard = g.auction ? g.auction.card : null;
@@ -2802,7 +2986,7 @@ export default function App() {
         <div className="panel">
           <button className="ai-tile" onClick={() => setAiOpen(!aiOpen)}>
             <div style={{ minWidth: 0, flex: 1 }}>
-              <div className="lbl" style={{ margin: 0 }}>AI GM {g.a.coach && <>· <Ico k="cap" s={15} /> {coachOf(g.a.coach).n} </>}· roster {g.a.roster.length}/10 · projekcija {aiProj.total}</div>
+              <div className="lbl" style={{ margin: 0 }}>AI GM {g.a.coach && <>· <Ico k="cap" s={15} /> {coachOf(g.a.coach).n} </>}· roster {g.a.roster.length}/10 · projekcija {aiProj.total}{g.franchise && (g.a.calls || []).length > 0 ? <span style={{ fontWeight: 500, textTransform: "none", letterSpacing: 0 }} title="AI drži toliko klicev v svojem Rolodexu"> · ☎️ {(g.a.calls || []).length}</span> : ""}{g.franchise && g.a.infra && Object.keys(g.a.infra).length > 0 ? <span style={{ fontWeight: 500, textTransform: "none", letterSpacing: 0 }} title="AI-jeva zgrajena infrastruktura"> · 🏗️ {Object.values(g.a.infra).reduce((s, l) => s + l, 0)}</span> : ""}</div>
               {!aiOpen && (() => { const last = [...g.log].reverse().find((l) => l.startsWith("AI")); return last ? <div className="ai-last">{last}</div> : null; })()}
             </div>
             <span className="chev">{aiOpen ? "▲ skrij" : "▼ podrobno"}</span>
@@ -2870,16 +3054,14 @@ export default function App() {
             <button className="optbtn ico-btn" style={{ flex: 1 }} disabled={!canTrade} onClick={openTrade}><Ico k="trade" s={16} /> Trejd <span className="opt-sub">{g.h.tradeUsed ? "· že" : "· 1×/potezo"}</span></button>
             <button className="optbtn ico-btn" style={{ flex: 1, background: waiveMode ? "#C0392B" : "#152744" }} disabled={!myTurn || g.h.roster.length === 0} onClick={() => { setWaiveMode(!waiveMode); if (!waiveMode) say("Waive: tapni igralca v svojem rosterju, ki ga odpuščaš."); }}><Ico k="waive" s={16} /> {waiveMode ? "Prekliči" : "Waive"}</button>
           </div>
-          <div className="mrow" style={{ marginTop: 6 }}>
-            <button className="optbtn ico-btn" style={{ flex: 1, background: "#3a2a5c" }} disabled={!myTurn || g.draftBoard.length === 0 || (g.draftUsed.h.f >= 1 && g.draftUsed.h.s >= 1)} onClick={() => setDraftOpen(true)}><Ico k="draft" s={16} /> Draftaj prospekta ({g.draftBoard.length}) <span className="opt-sub">· {g.draftUsed.h.f}/1 · {g.draftUsed.h.s}/1</span></button>
-          </div>
         </div>
 
         {/* MOJ ROSTER */}
         <div className="panel">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-            <div className="lbl" style={{ margin: 0 }}>Tvoj roster {g.h.roster.length}/10 · projekcija <b>{proj.total}</b></div>
+            <div className="lbl" style={{ margin: 0 }}>Tvoj roster {g.h.roster.length}/10 · projekcija <b>{proj.total}</b>{g.franchise && g.season >= 2 && g.ownerBase ? <span style={{ fontWeight: 500, textTransform: "none", letterSpacing: 0 }}> · 👔 cilj {Math.round(g.ownerBase * Math.pow(1.12, g.season - 1))}</span> : ""}</div>
             <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              {g.franchise && <span className="sklad-chip" title="🧱 Sklad — valuta za franšizno infrastrukturo (gradiš v prestopnem roku)">🧱 {g.h.sklad || 0}</span>}
               <Picks p={g.h.picks} />
               {g.h.roster.length > 0 && <button className="optbtn" onClick={optimize}>⚡ Peterka</button>}
               <button className="infob" onClick={() => setHelp("roster")} aria-label="Pomoč: roster">?</button>
@@ -2888,8 +3070,19 @@ export default function App() {
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {g.philosophy && g.philosophy.h && <button className="coach-chip" style={{ background: "#efe6fb", borderColor: "#d8c6f0" }} onClick={() => say(philOf(g.philosophy.h).d)}>🧭 <b>{philOf(g.philosophy.h).n}</b></button>}
             {g.h.coach && <button className="coach-chip" onClick={() => setHelp("roster")}><Ico k="cap" s={16} /> <b>{coachOf(g.h.coach).n}</b> · {coachOf(g.h.coach).t}</button>}
+            {g.leagueRule && <button className="coach-chip" style={{ background: "#dfe7f5", borderColor: "#b9c9e6" }} onClick={() => say(`${LEAGUE_RULES[g.leagueRule].n}: ${LEAGUE_RULES[g.leagueRule].d}`)}>{LEAGUE_RULES[g.leagueRule].ico} <b>{LEAGUE_RULES[g.leagueRule].n}</b></button>}
+          </div>
+          {/* ☎️ ROLODEX — klici, ki jih odigraš med sezono */}
+          <div className="rolodex">
+            <span className="rolo-lbl">☎️ ROLODEX {(g.h.calls || []).length}/3</span>
+            {(g.h.calls || []).map((id, i) => {
+              const c = CALLS[id]; const react = c.kind === "reaction"; const elig = !react && callEligible(id) && (g.callTurnUsed || 0) < 1;
+              return <button key={id + i} className={"call-chip" + (react ? " react" : elig ? "" : " dim")} title={c.d} onClick={() => { if (react) { say(`🛡️ »${c.n}« se odigra sam v svojem oknu (poškodba/dražba).`); return; } if ((g.callTurnUsed || 0) >= 1) { say("Na potezo lahko odigraš le 1 klic."); return; } if (!callEligible(id)) { say(id === "drbine" ? "Nisi poškodovan." : id === "kava" ? "Nimaš nezadovoljnega igralca." : c.d); return; } setCallModal({ id }); }}>{c.ico} {c.n.split(" ")[0]}</button>;
+            })}
+            {(g.h.calls || []).length === 0 && <span className="rolo-empty">— prazen (klice dobiš z izgubljeno dražbo in ob začetku sezone)</span>}
           </div>
           {g.h.deadCap > 0 && <div className="hint red">✂️ Dead cap: +{g.h.deadCap} M$ v plačni masi do konca runde (odpuščeni igralci).</div>}
+          {g.h.summer && g.h.summer.length > 0 && <div className="hint" style={{ color: "#9a6a13" }}>☀️ V poletni ligi (letos ni na voljo, počasi raste): {g.h.summer.map((c) => `${surname(c.n)} (${c.ovr})`).join(", ")}</div>}
           <CapMeter salary={myEff + (g.h.deadCap || 0)} cap={capNow} />
           {(() => {
             const starterIds = new Set(POS.map((p) => g.h.starters[p]).filter((id) => id != null));
@@ -3035,13 +3228,56 @@ export default function App() {
       )}
 
       {/* REHAB */}
+      {/* ☎️ igranje klica — potrditev ali izbira tarče */}
+      {callModal && (() => {
+        const c = CALLS[callModal.id];
+        const targets = callModal.id === "kava" ? g.h.roster.filter((x) => x.unhappy) : callModal.id === "aneks" ? g.h.roster : null;
+        return (
+          <div className="modal-bg" onClick={() => setCallModal(null)}>
+            <div className="modal" onClick={(e) => e.stopPropagation()}>
+              <h3>{c.ico} {c.n}</h3>
+              <p className="evt-text">{c.d}</p>
+              {targets
+                ? <div className="tr-col">{targets.map((t) => <button key={t.id} className="abtn sign" onClick={() => playCall(callModal.id, t)}>{surname(t.n)} <small>· OVR {t.ovr}{callModal.id === "aneks" && t.contract != null ? ` · 📄${t.contract}` : ""}</small></button>)}{targets.length === 0 && <div style={{ fontSize: 13, color: "#8a7c63" }}>Ni primerne tarče.</div>}</div>
+                : <div className="mrow"><button className="bigbtn" style={{ flex: 1 }} onClick={() => playCall(callModal.id)}>Odigraj klic</button></div>}
+              <div className="mrow"><button className="abtn ghost" style={{ flex: 1 }} onClick={() => setCallModal(null)}>Prekliči</button></div>
+            </div>
+          </div>
+        );
+      })()}
+      {/* ⏰ ROK ZA PRESTOPE — izbereš 1 klic ali +2🧱 */}
+      {deadline && (
+        <div className="modal-bg">
+          <div className="modal">
+            <h3>⏰ Rok za prestope</h3>
+            <p className="evt-text">Sredina sezone — telefoni žarijo. Izberi <b>1 klic</b> za svoj Rolodex ({(g.h.calls || []).length}/3) ali vzemi gradbeni <b>sklad</b>.</p>
+            <div className="tr-col">
+              {deadline.offers.map((id, i) => <button key={id + i} className="abtn sign" onClick={() => resolveDeadline(id)}>{CALLS[id].ico} {CALLS[id].n} <small>· {CALLS[id].d}</small></button>)}
+              <button className="abtn ghost" onClick={() => resolveDeadline("sklad")}>🧱 Raje +2 v sklad</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* 🛡️ reakcija: tvoj igralec poškodovan + držiš Zavarovanje */}
+      {injOffer && (
+        <div className="modal-bg">
+          <div className="modal">
+            <h3>🛡️ Zavarovalna polica?</h3>
+            <p className="evt-text"><b>{injOffer.card.n}</b> se je pravkar poškodoval. Uporabiš Zavarovalno polico in poškodbo takoj izničiš?</p>
+            <div className="mrow">
+              <button className="abtn sign" style={{ flex: 1 }} onClick={() => { setG({ ...g, injured: { ...g.injured, h: null }, h: { ...g.h, calls: g.h.calls.filter((x, i) => i !== g.h.calls.indexOf("zavarovanje")) }, log: [...g.log, `🛡️ Zavarovalna polica: ${surname(injOffer.card.n)} vendarle ostane zdrav.`] }); SFX.card(); setInjOffer(null); }}>🛡️ Uporabi (−1 klic)</button>
+              <button className="abtn ghost" style={{ flex: 1 }} onClick={() => setInjOffer(null)}>Pusti poškodbo</button>
+            </div>
+          </div>
+        </div>
+      )}
       {rehab && (
         <div className="modal-bg" onClick={() => setRehab(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h3>🩹 {rehab.n} je poškodovan</h3>
-            <p>Do konca runde ne more v prvo peterko (na klopi šteje normalno). Lahko ga pošlješ na <b>rehab za {g.rehabUsed?.h ? 2 : 1}× 🥈</b>{g.rehabUsed?.h ? " (prvi rehab v franšizi je bil cenejši)" : ""} — imaš jih {g.h.picks.s}.</p>
+            <p>Do konca runde ne more v prvo peterko (na klopi šteje normalno). Lahko ga pošlješ na <b>rehab za {rehabCostFor(g, "h")}× 🥈</b>{rehabCostFor(g, "h") === 1 && g.rehabUsed?.h ? " (🩺 Medicinski center)" : ""} — imaš jih {g.h.picks.s}.</p>
             <div className="mrow">
-              <button className="abtn sign" style={{ flex: 1 }} disabled={g.h.picks.s < (g.rehabUsed?.h ? 2 : 1)} onClick={heal}>💪 Rehab ({g.rehabUsed?.h ? 2 : 1}× 🥈)</button>
+              <button className="abtn sign" style={{ flex: 1 }} disabled={g.h.picks.s < rehabCostFor(g, "h")} onClick={heal}>💪 Rehab ({rehabCostFor(g, "h")}× 🥈)</button>
               <button className="abtn ghost" style={{ flex: 1 }} onClick={() => setRehab(null)}>Pusti ga počivati</button>
             </div>
           </div>
@@ -3106,6 +3342,9 @@ export default function App() {
                   </div>
                 )}
                 <div className="bidsum">Tvoja ponudba: {bidValC(bid, g.h.coach)}</div>
+                {g.revealAiBid != null
+                  ? <div className="bidsum" style={{ background: "#efe6fb", color: "#3a2a5c" }}>📞 AI-jeva ponudba: <b>{g.revealAiBid}</b> — preseži jo!</div>
+                  : g.h.calls.includes("zadnja") && <button className="abtn ghost" style={{ width: "100%", marginTop: 6 }} onClick={() => { const v = bidValC(aiBidFor(aucCard, g), g.a.coach); setG({ ...g, revealAiBid: v, h: { ...g.h, calls: g.h.calls.filter((x, i) => i !== g.h.calls.indexOf("zadnja")) }, log: [...g.log, `📞 Zadnja ponudba: AI ponuja ${v}.`] }); SFX.card(); }}>📞 Zadnja ponudba <small>· razkrij AI-jevo ponudbo (−1 klic)</small></button>}
               </>
             )}
             <div className="mrow">
@@ -3160,7 +3399,7 @@ export default function App() {
                   <span className="pickbar-item"><Ico k="s" s={15} />×{g.h.picks.s}</span>
                   {g.h.picks.w > 0 && <span className="pickbar-item"><Ico k="w" s={15} />×{g.h.picks.w}</span>}
                 </div>
-                <div className="hint" style={{ margin: "0 0 10px" }}>Pick = <b>pravica do izbire na draftu</b>. Vložiš ga v prospekta (🎫) — ali ga »trejdaš« kot valuto: tu popust na pogodbo, drugje dražba in rehab.</div>
+                <div className="hint" style={{ margin: "0 0 10px" }}>Pick je <b>valuta</b>: tu popust na pogodbo, drugje dražba, rehab in izravnava trejda.</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   <button className="signopt" style={{ background: "#215c26" }} onClick={() => { setSignOpts(null); sign(); }}>
                     <span className="signopt-main">Redna cena · <b>{signOpts.sal} M$</b></span>
@@ -3185,41 +3424,10 @@ export default function App() {
         </div>
       )}
 
-      {/* DRAFT DESKA */}
-      {draftOpen && (
-        <div className="modal-bg" onClick={() => setDraftOpen(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>🎫 Draft prospektov {g.classInfo && <span className="h3-tag">letnik: {g.classInfo.strength} · {g.classInfo.elites}×💎</span>}</h3>
-            <div className="hint" style={{ margin: "0 0 8px" }}>Tvoj draft slot: <b style={{ color: mySlot.top ? "#7a4fd0" : "#5a6b85" }}>{mySlot.label}</b> (slabša ekipa = boljši slot). Na rundo: <b>1×</b> 1. krog (🥇) + <b>1×</b> 2. krog (🥈). Porabljeno: {g.draftUsed.h.f}/1 · {g.draftUsed.h.s}/1.</div>
-            <div className="hint" style={{ margin: "0 0 8px" }}><b>Vsak tier ima svoj posel:</b> 💎 najvišji strop, a <b>zahteva peterko</b> (sicer dno + 😤; le z zgodnjim slotom) · 🌱 raste tudi s klopi, <b>če imaš ⭐ vodjo ali JJ-ja</b> · 🔒 <b>zaigra takoj</b> ob podpisu — poceni globina zdaj.</div>
-            {g.draftBoard.length === 0 && <p style={{ fontSize: 13, color: "#8a7c63" }}>Deska je prazna — vsi prospekti so že draftani.</p>}
-            <div className="tr-col">
-              {g.draftBoard.map((c) => {
-                const rd = c.tier === "safe" ? 2 : 1;
-                const usedUp = rd === 1 ? g.draftUsed.h.f >= 1 : g.draftUsed.h.s >= 1;
-                const eliteLock = c.tier === "elite" && !mySlot.top;
-                const canD = !usedUp && !eliteLock && (rd === 1 ? g.h.picks.f > 0 : g.h.picks.s > 0);
-                return (
-                  <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 8, opacity: canD ? 1 : 0.5 }}>
-                    <PlayerCard c={c} mini onClick={() => setInspect({ card: c, side: "draftview" })} />
-                    <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
-                      <button className="abtn sign" disabled={!canD} onClick={() => draftProspect(c)}>{usedUp ? `${rd}. krog porabljen` : eliteLock ? "🔒 rabi zgodnji slot" : `Draftaj (${rd === 1 ? "🥇 1." : "🥈 2."} krog)`}</button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            <div className="mrow" style={{ marginTop: 10 }}>
-              <button className="abtn ghost" style={{ flex: 1 }} onClick={() => setDraftOpen(false)}>Zapri</button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* INFO / OGLED KARTICE */}
       {inspect && (() => {
         const side = inspect.side;
-        const isHand = side === "hand", isMarket = side === "market", isDraftView = side === "draftview";
+        const isHand = side === "hand", isMarket = side === "market";
         const c = isMarket ? asDiscount(inspect.card) : inspect.card; // v trgu prikaži s popustom
         const mine = side === "h";
         const rosterSide = (side === "h" || side === "a") ? side : "h";
@@ -3228,13 +3436,13 @@ export default function App() {
         const injured = (side === "h" || side === "a") && g.injured[side] === c.id;
         const fiveCards = side === "a" ? Object.values(aiProj.starters) : starterCards;
         const others = fiveCards.filter((x) => x.id !== c.id);
-        const signable = (isHand || isMarket || isDraftView) && canSign(g.h.roster, c);
+        const signable = (isHand || isMarket) && canSign(g.h.roster, c);
         const emptyP = POS.filter((p) => p !== c.pos && !g.h.roster.some((x) => x.pos === p));
         const whyNot = g.h.roster.length >= 10 ? "Roster je poln (10)." : posCount(g.h.roster, c.pos) >= 3 ? `Že 3 igralci na poziciji ${c.pos}.` : `Ostati mora prostor za: ${emptyP.join(", ")}.`;
         return (
           <div className="modal-bg" onClick={() => setInspect(null)}>
             <div className="modal" onClick={(e) => e.stopPropagation()}>
-              <h3>{side === "a" ? "AI · " : isMarket ? "🟢 Trg · " : isDraftView ? "🎫 Prospekt · " : ""}{c.n} {isStarter ? "★" : ""}{injured ? " 🩹" : ""}</h3>
+              <h3>{side === "a" ? "AI · " : isMarket ? "🟢 Trg · " : ""}{c.n} {isStarter ? "★" : ""}{injured ? " 🩹" : ""}</h3>
               <div className="auc-card"><PlayerCard c={c} onClick={() => {}} /></div>
               <ul>
                 <li><b>{c.pos}</b> · {c.club} · <b>{c.age} let</b>{c.rookie ? " · ROOKIE" : ""} · <Ico k={c.tr} s={14} /> {TRAITS[c.tr].n}</li>
@@ -3245,21 +3453,20 @@ export default function App() {
                 {(side === "h" || side === "a") && !injured && <li>Prispevek {mine ? "tvoji" : "AI"} ekipi zdaj: <b className={contribOf(roster, c, side) >= 0 ? "" : "red"}>{contribOf(roster, c, side) >= 0 ? "+" : ""}{contribOf(roster, c, side)}</b> tč (koliko bi izgubil brez njega).</li>}
               </ul>
               {!injured && others.length > 0 && <UnlockPreview card={c} sCards={others} />}
-              {(isHand || isMarket || isDraftView) && (
+              {(isHand || isMarket) && (
                 <div className="addbox">
                   {signable
-                    ? <><div className="addval">Doda tvoji ekipi ≈ <b>{(() => { const v = addValue(g.h.roster, c, "h"); return (v >= 0 ? "+" : "") + v; })()}</b> tč{isDraftView ? " (surov; z minutami raste)" : ""}</div><div className="addstand">Trenutni izid — Ti <b>{proj.total}</b> · AI <b>{aiProj.total}</b></div></>
+                    ? <><div className="addval">Doda tvoji ekipi ≈ <b>{(() => { const v = addValue(g.h.roster, c, "h"); return (v >= 0 ? "+" : "") + v; })()}</b> tč</div><div className="addstand">Trenutni izid — Ti <b>{proj.total}</b> · AI <b>{aiProj.total}</b></div></>
                     : <div className="addval" style={{ color: "#b23b2e" }}>Ne moreš podpisati: {whyNot}</div>}
                 </div>
               )}
               <div className="mrow" style={{ marginTop: 10 }}>
-                {isDraftView && <button className="abtn sign" style={{ flex: 1 }} disabled={!myTurn || (rookieRound(c) === 1 ? (g.draftUsed.h.f >= 1 || g.h.picks.f < 1) : (g.draftUsed.h.s >= 1 || g.h.picks.s < 1))} onClick={() => { setInspect(null); draftProspect(c); }}>{(rookieRound(c) === 1 ? g.draftUsed.h.f >= 1 : g.draftUsed.h.s >= 1) ? "krog porabljen" : `Draftaj (${rookieRound(c) === 1 ? "🥇" : "🥈"})`}</button>}
                 {isMarket && <button className="abtn sign" style={{ flex: 1 }} disabled={!signable || !drawPhase} onClick={() => { setInspect(null); takeMarket(inspect.card); }}>Vzemi s popustom ({c.sal} M$)</button>}
                 {isHand && actPhase && <button className="abtn sign" style={{ flex: 1 }} disabled={!signable || (g.h.signedTurn || 0) >= SIGN_LIMIT} onClick={() => { setInspect(null); const canDisc = c.sal > 2 && (g.h.picks.f > 0 || g.h.picks.s > 0); canDisc ? setSignOpts(c) : sign(); }}>Podpiši ✍️</button>}
                 {isHand && actPhase && <button className="abtn drop" style={{ flex: 1 }} onClick={() => { setInspect(null); discard(); }}>Odvrzi 🗑️</button>}
                 {mine && !injured && !isStarter && <button className="abtn sign" style={{ flex: 1 }} onClick={() => { setStarter(c); setInspect(null); }}>★ V peterko</button>}
                 {mine && !injured && isStarter && <button className="optbtn" style={{ flex: 1 }} onClick={() => { const st = { ...g.h.starters }; const alt = g.h.roster.filter((x) => x.pos === c.pos && x.id !== c.id && g.injured.h !== x.id).sort((x, y) => spts(y) - spts(x))[0]; if (alt) st[c.pos] = alt.id; else delete st[c.pos]; setG({ ...g, h: { ...g.h, starters: st } }); setInspect(null); say(`${surname(c.n)} gre na klop.`); }}>Na klop</button>}
-                {mine && injured && <button className="abtn sign" style={{ flex: 1 }} disabled={g.h.picks.s < (g.rehabUsed?.h ? 2 : 1)} onClick={() => { setInspect(null); setRehab(c); }}>🩹 Rehab ({g.rehabUsed?.h ? 2 : 1}× 🥈)</button>}
+                {mine && injured && <button className="abtn sign" style={{ flex: 1 }} disabled={g.h.picks.s < rehabCostFor(g, "h")} onClick={() => { setInspect(null); setRehab(c); }}>🩹 Rehab ({rehabCostFor(g, "h")}× 🥈)</button>}
                 {mine && !injured && myTurn && <button className="abtn drop" style={{ flex: 1 }} onClick={() => { setInspect(null); setWaiveTarget(c); }}>✂️ Waive</button>}
                 <button className="abtn ghost" style={{ flex: 1 }} onClick={() => setInspect(null)}>{isMarket ? "Prekliči" : "Zapri"}</button>
               </div>
@@ -3304,7 +3511,7 @@ export default function App() {
             {introPage === 1 ? <>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><h3 style={{ margin: 0 }}>Cilj: zgradi dinastijo</h3><button className="linkbtn" style={{ marginTop: 0, fontSize: 14 }} onClick={closeIntro}>Preskoči ✕</button></div>
               <div className="step"><div className="stepn">🏆</div><p><b>Tekmuješ z rivalsko AI dinastijo.</b> Vsako sezono oba sestavita ekipo; boljša osvoji <b>naslov</b>. Po vseh sezonah zmaga tisti z <b>več naslovi</b> — premagaj rivala.</p></div>
-              <div className="step"><div className="stepn">🌱</div><p><b>Razvij mlade.</b> Draftaš prospekte z nizkim OVR, ki skozi sezone <b>zrastejo v zvezdnike</b> — poceni jedro prihodnosti.</p></div>
+              <div className="step"><div className="stepn">🌱</div><p><b>Razvij mlade.</b> V ustanovnem naboru dobiš 2 mlada temelja z nizkim OVR, ki skozi sezone <b>zrastejo v zvezdnike</b> — poceni jedro prihodnosti.</p></div>
               <div className="step"><div className="stepn">◆</div><p><b>Ujemi svoje okno.</b> Igralci se starajo (↗ V vzponu → ◆ Vrhunec → ↓ Upad). Ko je jedro v vrhuncu, greš <b>all-in</b> za naslov.</p></div>
               <div className="step"><div className="stepn">🎰</div><p><b>Draft loterija:</b> kdor sezono izgubi, v prestopnem roku <b>izbira prvi</b>. Slaba sezona ti prinese boljši izbor — <b>tankiranje</b> je veljavna strategija.</p></div>
               <div className="mrow"><button className="bigbtn" style={{ flex: 1, fontSize: 15 }} onClick={() => setIntroPage(2)}>Naprej: kako poteka poteza →</button></div>
@@ -3335,7 +3542,7 @@ export default function App() {
                 <li><b>🟢 AI-jev odpad:</b> znana karta s <b>popustom −25 % na plačo</b> — cenejša pogodba, enak OVR in vpliv.</li>
                 <li><b><Gavel s={14} /> Dražba:</b> igralec z OVR {AUCTION_OVR}+ med prostimi sproži skrivno dražbo z draft picki.</li>
                 <li><b>🔴 Tvoj odpad:</b> kar odvržeš ali waivaš, lahko AI pobere s popustom — pazi, kaj mu podariš.</li>
-                <li><b>🔄 Trejd:</b> 1× na potezo predlagaš menjavo 1:1 (+ picki za izravnavo). <b>✂️ Waive:</b> odpustiš podpisanega, ostane dead cap. <b>🎫 Draft:</b> prospekt za pick — surov, a zraste.</li>
+                <li><b>🔄 Trejd:</b> 1× na potezo predlagaš menjavo 1:1 (+ picki za izravnavo). <b>✂️ Waive:</b> odpustiš podpisanega, ostane dead cap.</li>
               </ul>
             </>}
             {help === "roster" && <>
@@ -3376,15 +3583,21 @@ function Rules({ onClose }) {
           <li><b>Cilj:</b> roster 10 igralcev (max 3 na pozicijo), več točk kot AI. Sezona do {TARGET} točk.</li>
           <li><b>🏀 Vseh 5 pozicij:</b> podpisuješ svobodno, a roster lahko <b>zaključiš (10 igralcev) šele, ko imaš vsaj 1 igralca na vsaki poziciji</b> (PG, SG, SF, PF, C). Igra te samodejno ustavi, če bi podpis ali trejd pustil pozicijo, ki je ne bi mogel več zapolniti. Isto velja za AI.</li>
           <li><b>🧢 Coach:</b> na začetku vsake runde izbereš enega od 6 coachev — vsak da drugačen bonus (popust na zvezdnike, obrambne točke, močnejšo klop, boljše picke …). AI dobi naključnega izmed preostalih.</li>
-          <li><b>🎫 Draft prospektov:</b> na rundo največ <b>1 igralec 1. kroga</b> (💎/🌱, 🥇 pick) in <b>1 igralec 2. kroga</b> (🔒, 🥈 pick). Vsak tier ima <b>svoj posel</b>: 💎 <b>Elitni</b> — najvišji strop, a zahteva minute: če ob razvoju NI v prvi peterki, pade na dno potenciala in postane 😤 nezadovoljen (vpliv globoko v minus); dosegljiv le z zgodnjim slotom. 🌱 <b>Projekt</b> — visok strop; proti njemu raste tudi s klopi, če imaš v rosterju ⭐ vodjo ali coacha J.J. Redicka (mentor). 🔒 <b>Pripravljen</b> — razvije se <b>takoj ob podpisu</b>: poceni takojšnja globina za Moneyball ali luknjo na poziciji. AI prav tako drafta. <b>Letnik</b> je vsako sezono drugačen (šibek/soliden/močan — prospekti se generirajo na novo). Vsak prospekt ima <b>⭑ kavelj</b> (posebnost, piše na kartici), ki ostane celo kariero. Potencialni razpon je viden, dejanski razvoj pa je loterija znotraj njega.</li>
-          <li><b>🩹 Poškodbe:</b> po vsakem krogu je 12 % možnost, da se naključen podpisani igralec (tvoj ali AI-jev) poškoduje do konca runde — ne more v prvo peterko, na klopi šteje normalno. Rehab ga takoj pozdravi (tapni poškodovanca): prvi v franšizi stane 1× 🥈, vsak naslednji 2× 🥈. Največ 1 aktivna poškodba na GM-a; globok roster je zavarovanje.</li>
+          <li><b>🏗️ Ustanovni nabor (edini draft):</b> na začetku dinastije draftaš <b>2 mlada temelja</b> — in to je edini draft v celi dinastiji (vsako poletje NI novih rookiejev). Zato sta tvoja temelja dragocena: neguješ ju vseh 5 sezon. Vsak ima tier: 💎 <b>Elitni</b> (najvišji strop, a na klopi brez minut postane 😤), 🌱 <b>Projekt</b> (raste tudi s klopi ob ⭐ vodji ali J.J. Redicku), 🔒 <b>Pripravljen</b> (zaigra takoj). Vsak ima <b>⭑ kavelj</b> (posebnost). Potencialni razpon je viden, dejanski razvoj je loterija znotraj njega.</li>
+          <li><b>🌱 Večletni razvoj + ☀️ poletna liga:</b> mladi (≤23) rastejo proti stropu <b>vsako sezono, dokler dobivajo minute</b>: <b>★ prva peterka</b> najhitreje, <b>🎓 klop</b> srednje. Če surovca še nočeš igrati (in bi ti kradel točke), ga pošlješ v <b>☀️ poletno ligo</b> (odločitev v prestopnem roku): tisto sezono ni na voljo in <b>sprosti mesto v rosterju</b>, a še vedno počasi raste. Igranje mladca stane točke zdaj, a ker ni novih draftov in veterani hitro starajo, je razvit lasten core edina vzdržna pot do dinastije.</li>
+          <li><b>🩹 Poškodbe:</b> po vsakem krogu je ~12 % možnost (📋 pravilo lige lahko spremeni), da se naključen podpisani igralec poškoduje do konca runde — ne more v prvo peterko, na klopi šteje normalno. Rehab ga takoj pozdravi (tapni poškodovanca): prvi v franšizi stane 1× 🥈, vsak naslednji 2× 🥈 (🩺 Medicinski center pocenili). Klic 🛡️ Zavarovalna polica ga izniči zastonj. Največ 1 aktivna poškodba na GM-a.</li>
           <li><b>Poteza:</b> 1) vzemi 1 karto (skriti kup na slepo ALI karto iz AI-jevega odpada s popustom), 2) podpiši <b>največ {SIGN_LIMIT} igralca</b> (enako velja za AI), 3) odvrzi 1 karto. Omejitev podpisov pomeni: včasih se splača čakati na boljšega — a karta, ki jo odvržeš, lahko konča pri AI-ju!</li>
           <li><b>📻 Medsezonska drama:</b> po vsakem obračunu sezone te čaka dogodek z odločitvijo (podcast drama, rookie zid, poslovilna turneja …). Izbire so varne ali tvegane — posledice (vpliv, OVR, picki, poškodbe, celo nova vloga igralca) neseš v novo sezono.</li>
           <li><b>🔖 Ugodne pogodbe:</b> plače v kupu se vsako rundo/sezono <b>na novo naključno določijo</b> — ~12 igralcev dobi 🔖 ugodno pogodbo (55–70 % tržne cene), ostali so bliže tržni. Kradljivci so vsakič drugi, zato se kupa ne da naučiti na pamet.</li>
           <li><b>♻️ Odpadi (kaj se zgodi z discardi):</b> tvoji odvrženi in waivani igralci gredo v <b>tvoj odpad</b>, iz katerega jih AI lahko pobere s <b>popustom −25 % na plačo</b> — zato pazi, da mu ne odvržeš igralca, ki mu točno paše. AI-jevi odpadi so na voljo <b>tebi</b> s popustom. Popust pomeni cenejšo plačo (manj davka), OVR in vpliv ostaneta.</li>
-          <li><b>Draft picki:</b> pick je <b>pravica do izbire prospekta</b> — vložiš ga v draft (🎫) ali »trejdaš« kot valuto (popust pri podpisu, dražba, rehab, izravnava trejda). Vsak GM začne rundo z 2× 🥇 (vreden {PV.f}), 3× 🥈 ({PV.s}) in 1× 🔁 pick swap ({PV.w} v dražbi). Neporabljeni 🥇/🥈 ob koncu runde štejejo točke — a <b>pametno porabljen pick je praviloma vreden precej več</b> kot pick v žepu.</li>
+          <li><b>Draft picki:</b> pick je valuta — »trejdaš« ga za <b>popust pri podpisu</b> (🥇 −14 M$, 🥈 −6 M$), <b>rehab</b> poškodovanca, ponudbo na <b>dražbi</b> ali izravnavo trejda. Vsak GM začne rundo z 2× 🥇 (vreden {PV.f}), 3× 🥈 ({PV.s}) in 1× 🔁 pick swap ({PV.w} v dražbi). Neporabljeni 🥇/🥈 ob koncu runde štejejo točke — a <b>pametno porabljen pick je praviloma vreden precej več</b> kot pick v žepu.</li>
           <li><b><Gavel s={14} /> Dražba:</b> ko igralec z OVR {AUCTION_OVR}+ pristane med prostimi igralci, oba GM-ja skrivno ponudita picke. Višja ponudba igralca takoj podpiše; picki zmagovalca so porabljeni, poraženec obdrži svoje. Pick swap ob zmagi zamenja tvoj najboljši preostali pick za nasprotnikovega najslabšega.</li>
           <li><b>🔄 Trejd:</b> enkrat <b>na vsako svojo potezo</b> predlagaš AI-ju menjavo podpisanih igralcev 1:1, s picki kot izravnavo. AI sprejme, če je zanj vrednost dovolj dobra.</li>
+          <li><b>☎️ ROLODEX (klici):</b> držiš do <b>3 potrošne karte-klice</b> in sam izbereš trenutek igranja med sezono (pas pod tvojim rosterjem). Nekateri se igrajo takoj (Hitra poteza, Prišepnjen popust …), drugi kot <b>reakcija</b> v svojem oknu (🛡️ Zavarovalna polica ob poškodbi, 📞 Zadnja ponudba med dražbo). Klic <b>dobiš ob začetku sezone</b>, kot <b>tolažbo ob izgubljeni dražbi</b> in na <b>roku za prestope</b>. Največ 1 klic na svojo potezo. <b>AI ima svoj Rolodex</b> (☎️ N ob njegovem imenu) in klice tudi igra.</li>
+          <li><b>⏰ Rok za prestope:</b> ko prvi GM napolni <b>8/10</b> rosterja, oba dobita priložnost — izbereš 1 od 3 klicev ali +2🧱 v sklad.</li>
+          <li><b>🧱 SKLAD in 🏗️ Infrastruktura:</b> 🧱 sklad služiš z <b>igranjem sezone</b> (zmaga, razviti temelji, cilj lastnika) in z <b>žetvijo neporabljenih pickov</b> v prestopnem roku. V prestopnem roku ga vlagaš v <b>franšizno infrastrukturo</b> (Trening center, Akademija, Medicinski …) — vsaka linija ima 3 ravni (L3 skrit do L2) in <b>trajno spremeni pravila tvoje ekonomije</b> (hitrejši razvoj mladih, blažje staranje, cenejši rehab, bonus točke). AI gradi simetrično (🏗️ N ob imenu).</li>
+          <li><b>👔 Pričakovanja lastnika:</b> po 1. sezoni lastnik postavi cilj, ki raste <b>+12 % vsako sezono</b>. Dosežen → +2🧱 + klic; zgrešen → obrezan proračun (−1🧱). Cilj vidiš med sezono (»👔 cilj N«).</li>
+          <li><b>📋 Pravila lige:</b> vsako sezono velja <b>en proceduralni twist</b> za oba GM-a (razkrit v prestopnem roku, da gradiš z mislijo nanj): več/manj poškodb, hitrejši razvoj mladih, bogatejši sklad, dodatni klic ali pick. Jedro prejšnje sezone tako ni več samodejno optimalno.</li>
           <li><b>✂️ Waive:</b> podpisanega igralca lahko odpustiš med proste igralce (kjer ga lahko pobere AI, superzvezdnik pa sproži dražbo). Plača pade iz plačne mase, a ostane <b>dead cap: četrtina plače (najmanj 3 M$)</b> do konca runde — šteje v davek in Moneyball.</li>
           <li><b>Prva peterka</b> (tap na igralca): štartar šteje <b>OVR + 2× vpliv</b> (zeleno/rdeče število na karti). Klop šteje OVR÷2 — zato je vpliv pomemben samo pri štartarjih.</li>
           <li><b>Lastnosti:</b> 🎯 2+ snajperja v peterki +10 · 🛡️ 2+ branilca +10 · 🧠 organizator +8 · 🔥 najboljši šesti mož na klopi šteje poln OVR + doda svoj vpliv · ⭐ vodja v rosterju +8.</li>
