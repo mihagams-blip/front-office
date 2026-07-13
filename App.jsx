@@ -2383,7 +2383,8 @@ export default function App() {
       .menu h1 .t1 { --dx:-60px; } .menu h1 .t2 { --dx:60px; animation-delay:.12s; }
       @keyframes fotitle { from { opacity:0; transform:translateX(var(--dx)); } }
       .menu .tag { animation: fofadein .5s ease .4s both; }
-      .menu-btns .bigbtn { border-left:3px dashed rgba(255,255,255,.55); }
+      .menu-btns .bigbtn { position:relative; }
+      .menu-btns .bigbtn::before { content:""; position:absolute; top:9px; bottom:9px; left:16px; border-left:2px dashed rgba(255,255,255,.5); pointer-events:none; }
       .marq { overflow:hidden; white-space:nowrap; }
       .marq-in { display:inline-block; animation: fomarq 18s linear infinite; }
       @keyframes fomarq { to { transform:translateX(-50%); } }
