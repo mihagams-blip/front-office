@@ -1001,20 +1001,35 @@ function Face({ c, cls }) {
   return null;
 }
 
-function PlayerCard({ c, onClick, selected, mini, starter, dim, ribbon, injured, onStar }) {
+// hrbet karte za pack-opening obrat (dizajn recikliran iz skritega kupa)
+// TODO(ChatGPT slike): ko bo narejen card-back iz ChatGPT, sem vstavi <img src="/img/card-back-v1.jpg"> namesto SVG žoge
+function CardBack({ tell }) {
+  return (
+    <div className={"card-back" + (tell ? " tell" : "")}>
+      <svg viewBox="0 0 32 32" aria-hidden="true">
+        <circle cx="16" cy="16" r="13" fill="#E4762B" stroke="#F0B429" strokeWidth="1.6" />
+        <path d="M16 3v26 M3 16h26 M8.7 8.7c4 3.2 4 11.4 0 14.6 M23.3 8.7c-4 3.2-4 11.4 0 14.6" fill="none" stroke="#152744" strokeWidth="1.7" strokeLinecap="round" />
+      </svg>
+    </div>
+  );
+}
+
+function PlayerCard({ c, onClick, selected, mini, starter, dim, ribbon, injured, onStar, stamped }) {
+  const rare = (c.ovr >= 93 ? " gold" : "") + (c.rookie && c.tier === "elite" ? " holo" : "");
   if (mini) {
     return (
-      <button className={"mini" + (starter ? " starter" : "") + (selected ? " msel" : "") + (injured ? " inj" : "")} style={{ borderTopColor: injured ? "#C0392B" : POS_COLOR[c.pos] }} onClick={onClick}>
+      <button className={"mini" + rare + (starter ? " starter" : "") + (selected ? " msel" : "") + (injured ? " inj" : "")} style={{ borderTopColor: injured ? "#C0392B" : POS_COLOR[c.pos] }} onClick={onClick}>
         <div className="mini-top"><PosBadge p={c.pos} sm /><span>{injured ? <Ico k="inj" s={14} /> : c.rookie ? <Ico k={c.tier} s={14} /> : <Ico k={c.tr} s={14} />}</span><b>{c.ovr}</b></div>
         <div className="mini-name">{injured ? "🩹 " : starter ? "★ " : ""}{c.unhappy && <Ico k="sulk" s={13} style={{ verticalAlign: "-2px", marginRight: 1 }} />}<Face c={c} cls="mini-face" />{surname(c.n)}</div>
         <div className="mini-sal"><span style={{ color: careerPhase(c.age).col, fontWeight: 700 }}>{careerPhase(c.age).ico} {c.age} let</span> · {c.deal ? "🔖 " : ""}{c.sal} M${c.contract != null && <> · <Ico k="contract" s={11} style={{ verticalAlign: "-1px" }} />{c.contract}</>}</div>
         <div className="mini-pts">{injured ? "poškodovan" : starter ? `★ ${spts(c)} tč v peterki` : `klop ${Math.floor(c.ovr / 2)} tč`}</div>
         {onStar && !starter && !injured && <span className="mini-promote" role="button" title="Premakni v prvo peterko" onClick={(e) => { e.stopPropagation(); onStar(); }}>↑ v peterko</span>}
+        {stamped && <div className="stamp"><span>{stamped}</span></div>}
       </button>
     );
   }
   return (
-    <button className={"card" + (selected ? " sel" : "") + (dim ? " dim" : "")} onClick={onClick} style={{ borderTopColor: POS_COLOR[c.pos] }}>
+    <button className={"card" + rare + (selected ? " sel" : "") + (dim ? " dim" : "")} onClick={onClick} style={{ borderTopColor: POS_COLOR[c.pos] }}>
       {ribbon && <div className="ribbon">{ribbon}</div>}
       <div className="card-row"><PosBadge p={c.pos} /><span className="ovr">{c.ovr >= AUCTION_OVR ? <Gavel s={16} /> : null}{c.ovr}</span></div>
       <Face c={c} cls="face" />
@@ -1029,6 +1044,7 @@ function PlayerCard({ c, onClick, selected, mini, starter, dim, ribbon, injured,
         <span className="sal" title={c.deal ? "🔖 Ugodna pogodba — letos podcenjen" : undefined}>{c.deal ? "🔖 " : ""}{c.disc ? <><span className="oldsal">{c.origSal}</span> {c.sal} M$</> : `${c.sal} M$`}</span>
         <span className={"pm " + (c.pm >= 0 ? "pos" : "neg")}>vpliv {c.pm >= 0 ? "+" : ""}{c.pm}</span>
       </div>
+      {stamped && <div className="stamp"><span>{stamped}</span></div>}
     </button>
   );
 }
@@ -1332,6 +1348,7 @@ const SFX = (() => {
     cheer() { const a = ctx(); if (!a || muted) return; const t = a.currentTime; const s = a.createBufferSource(); s.buffer = noise(a, 1.5); const f = a.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = 1000; f.Q.value = 0.5; const g = a.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.4, t + 0.35); g.gain.setValueAtTime(0.4, t + 0.95); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.5); s.connect(f).connect(g).connect(a.destination); s.start(t); s.stop(t + 1.55); for (let i = 0; i < 2; i++) tone(a, t + 0.25 + i * 0.45, 1900 + i * 300, 2700 + i * 300, 0.22, 0.11); }, // tribune ob zmagi
     dribble() { const a = ctx(); if (!a || muted) return; const t = a.currentTime; let tt = t, gap = 0.36, amp = 0.42; for (let i = 0; i < 6; i++) { tone(a, tt, 170, 70, 0.12, amp); burst(a, tt, 0.025, "lowpass", 420, 0.5, amp * 0.55); tt += gap; gap *= 0.82; amp *= 0.83; } }, // tapkanje žoge ob porazu
     thanks() { const a = ctx(); if (!a || muted) return; const t = a.currentTime; [523.25, 659.25, 783.99].forEach((f, i) => tone(a, t + i * 0.1, f, f, 0.16, 0.24, "triangle")); }, // vljuden "hvala" ob waivu (C–E–G)
+    thud() { const a = ctx(); if (!a || muted) return; const t = a.currentTime; tone(a, t, 120, 55, 0.1, 0.5); burst(a, t, 0.03, "lowpass", 300, 0.7, 0.3); }, // žig udari na papir
   };
 })();
 
@@ -1393,6 +1410,25 @@ export default function App() {
   const [bid, setBid] = useState({ f: 0, s: 0, w: 0 });
   const [trade, setTrade] = useState(null); // {give, get, f, s}
   const [reveal, setReveal] = useState(null); // karta, vlečena s skritega kupa
+  const [flipped, setFlipped] = useState(false); // pack-opening: ali je razkrita karta že obrnjena
+  const [stamp, setStamp] = useState(null); // { id, txt } — žig na sveže podpisani kartici
+  const [bigStamp, setBigStamp] = useState(null); // velik žig čez ekran (TEMELJ FRANŠIZE)
+  const [aucReveal, setAucReveal] = useState(null); // razplet dražbe (kuverti)
+  const [aucStage, setAucStage] = useState(0); // 0 = tvoja kuverta, 1 = AI kuverta, 2 = udarec kladiva
+  useEffect(() => {
+    if (!reveal) { setFlipped(false); return; }
+    setFlipped(false);
+    const t = setTimeout(() => setFlipped(true), reveal.disc ? 250 : reveal.ovr >= 90 ? 1100 : 450); // 90+: zlati "tell" pred obratom
+    return () => clearTimeout(t);
+  }, [reveal]);
+  useEffect(() => {
+    if (!aucReveal) { setAucStage(0); return; }
+    setAucStage(0);
+    const t1 = setTimeout(() => setAucStage(1), 900);
+    const t2 = setTimeout(() => setAucStage(2), 1800);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, [aucReveal]);
+  useEffect(() => { if (aucStage === 2 && aucReveal) { SFX.gavel(); } }, [aucStage, aucReveal]);
   const [rehab, setRehab] = useState(null); // poškodovan igralec za rehab
   const [waiveMode, setWaiveMode] = useState(false);
   const [waiveTarget, setWaiveTarget] = useState(null);
@@ -1798,10 +1834,16 @@ export default function App() {
       logs.push(`⚖️ Nihče ni dal dovolj — ${card.n} ostaja prost na trgu.`);
     }
     ns = { ...ns, log: [...ns.log, ...logs] };
-    say(logs[logs.length - 1]);
-    if (au.cont === "start" || au.cont === "resume") setG(ns);
-    else if (au.cont === "hDiscard") finishTurn(ns);
-    else if (au.cont === "aiEnd") postAi(ns, au.isFinal);
+    const winner = hV > aV && hV > 0 ? "h" : aV > hV && aV > 0 ? "a" : null;
+    setAucReveal({ card, hB, aB, hV, aV, winner, ns, cont: au.cont, isFinal: au.isFinal }); // razplet v treh taktih (kuverti → kladivo)
+  };
+  const aucFinish = () => {
+    const r = aucReveal;
+    if (!r) return;
+    setAucReveal(null);
+    if (r.cont === "start" || r.cont === "resume") setG(r.ns);
+    else if (r.cont === "hDiscard") finishTurn(r.ns);
+    else if (r.cont === "aiEnd") postAi(r.ns, r.isFinal);
   };
 
   // ---- ČLOVEŠKE AKCIJE ----
@@ -1882,6 +1924,9 @@ export default function App() {
     const hUsed = fb.hUsed + 1;
     const goneSet = new Set(gone);
     SFX.pen();
+    setBigStamp("TEMELJ FRANŠIZE");
+    setTimeout(() => SFX.thud(), 150);
+    setTimeout(() => setBigStamp(null), 1100);
     setG({ ...g, h: { ...g.h, roster: hRoster }, a: { ...g.a, roster: aRoster }, draftBoard: g.draftBoard.filter((x) => !goneSet.has(x.n)), rookieClass: (g.rookieClass || []).filter((x) => !goneSet.has(x.n)), founding: { board, hUsed, aUsed }, log: [...g.log, ...logs] });
     say(`Temelj ${hUsed}/2: ${surname(c.n)} je tvoj. ${hUsed >= 2 ? "Naprej na trg — zgradi okoli njiju." : "Izberi še enega."}`);
   };
@@ -1916,6 +1961,9 @@ export default function App() {
     SFX.pen();
     setG({ ...g, h: { ...withSigned(g.h, c), picks, signedTurn: (g.h.signedTurn || 0) + 1 }, log: [...g.log, ...logs] });
     setSel(null);
+    setStamp({ id: c.id, txt: "PODPISANO" });
+    setTimeout(() => SFX.thud(), 180);
+    setTimeout(() => setStamp(null), 1200);
   };
 
   const discard = () => {
@@ -2031,12 +2079,12 @@ export default function App() {
       .fo { font-family:'Barlow Condensed','Arial Narrow',Arial,sans-serif; min-height:100vh; color:#1d2433;
         background: repeating-linear-gradient(90deg,#dcc296 0 46px,#d4b888 46px 92px); }
       .wrap { max-width:520px; margin:0 auto; padding:10px 10px 92px; }
-      .hdr { background:#152744; color:#F5EBDC; border-radius:12px; padding:10px 14px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 3px 0 #0c1830; }
+      .hdr { background-color:#152744; background-image:radial-gradient(rgba(255,255,255,.07) 1px, transparent 1.5px); background-size:7px 7px; color:#F5EBDC; border-radius:12px; padding:10px 14px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 3px 0 #0c1830; }
       .hdr h1 { font-family:'Archivo Black','Arial Black',sans-serif; font-size:17px; letter-spacing:1px; }
       .hdr .sub { font-size:12px; opacity:.75; }
       .score-strip { display:flex; gap:10px; font-size:15px; font-weight:700; text-align:center; }
       .score-strip b { color:#F0B429; font-size:18px; display:block; }
-      .panel { background:#fffdf7; border-radius:12px; padding:10px; margin-top:10px; box-shadow:0 2px 6px rgba(20,25,40,.15); }
+      .panel { background:linear-gradient(180deg,#fffdf7,#faf5e8); border-radius:12px; padding:10px; margin-top:10px; box-shadow: inset 0 1px 0 #fff, 0 2px 6px rgba(20,25,40,.15), 0 1px 0 #d8cdb8; }
       .lbl { font-size:12px; text-transform:uppercase; letter-spacing:1.2px; color:#7a6a4f; font-weight:700; margin-bottom:6px; }
       .hint { font-size:13px; color:#6d5f45; margin-bottom:6px; line-height:1.35; }
       .posb { color:#fff; font-weight:700; font-size:12px; padding:1px 6px; border-radius:4px; }
@@ -2249,8 +2297,96 @@ export default function App() {
       .sb-note { font-size:10px; opacity:.6; }
       .sb-season { font-size:11px; opacity:.75; }
       /* ===== MIKRO ANIMACIJE — kratke, namenske (jasnost pred okrasjem) ===== */
-      .card, .mini { animation: focardin .18s ease-out; }
-      @keyframes focardin { from { opacity:0; transform:scale(.92) translateY(5px); } to { opacity:1; transform:scale(1) translateY(0); } }
+      /* dealing: vstopna animacija SAMO v roki in na trgu (ne ob vsakem re-renderju vseh kart) */
+      @keyframes fodeal { from { opacity:0; transform:translateX(-18px) rotate(-4deg) scale(.9); } }
+      .hand .card, .fa-row .card { animation: fodeal .28s cubic-bezier(.2,1.1,.4,1) both; }
+      .hand .card:nth-child(2), .fa-row .card:nth-child(2) { animation-delay:50ms; }
+      .hand .card:nth-child(3), .fa-row .card:nth-child(3) { animation-delay:100ms; }
+      .hand .card:nth-child(4), .fa-row .card:nth-child(4) { animation-delay:150ms; }
+      .hand .card:nth-child(5), .fa-row .card:nth-child(5) { animation-delay:200ms; }
+      .hand .card:nth-child(6), .fa-row .card:nth-child(6) { animation-delay:250ms; }
+      .hand .card:nth-child(7), .fa-row .card:nth-child(7) { animation-delay:300ms; }
+      .hand .card:nth-child(8), .fa-row .card:nth-child(8) { animation-delay:350ms; }
+      /* gumbi s pero-vzmetjo */
+      .bigbtn:not(:disabled):active { transform:translateY(4px); box-shadow:0 0 0 rgba(0,0,0,0); }
+      .abtn:not(:disabled):active { transform:translateY(2px) scale(.98); }
+      .deckbtn:not(:disabled):active { transform:translateY(3px); }
+      /* pack-opening: 3D obrat karte s skritega kupa */
+      .flip-scene { perspective:900px; }
+      .flip-inner { position:relative; display:inline-block; transform-style:preserve-3d; transition:transform .65s cubic-bezier(.3,1.2,.4,1); transform:rotateY(0); }
+      .flip-inner.flipped { transform:rotateY(180deg); }
+      .flip-front { backface-visibility:hidden; -webkit-backface-visibility:hidden; transform:rotateY(180deg); }
+      .flip-back { position:absolute; inset:0; backface-visibility:hidden; -webkit-backface-visibility:hidden; z-index:2; }
+      .card-back { width:100%; height:100%; border-radius:10px; border:2px solid #33507e; display:flex; align-items:center; justify-content:center;
+        background:
+          repeating-linear-gradient(45deg, rgba(240,180,41,.14) 0 5px, transparent 5px 10px),
+          repeating-linear-gradient(-45deg, rgba(240,180,41,.14) 0 5px, transparent 5px 10px),
+          linear-gradient(155deg, #26426f, #101f38);
+        box-shadow: inset 0 0 0 4px #101f38, inset 0 0 0 5px rgba(240,180,41,.32); }
+      .card-back svg { width:56px; height:56px; opacity:.9; }
+      .card-back.tell { animation: fotell .6s ease-in-out infinite; }
+      @keyframes fotell { 50% { box-shadow: inset 0 0 0 4px #101f38, inset 0 0 0 5px rgba(240,180,41,.32), 0 0 24px 6px rgba(240,180,41,.75); } }
+      .flip-info { opacity:0; transition:opacity .3s ease .15s; }
+      .flip-info.show { opacity:1; }
+      .flip-spark { position:absolute; width:7px; height:7px; border-radius:2px; background:#F0B429; pointer-events:none; z-index:3; animation: fospark .7s ease-out forwards; }
+      @keyframes fospark { from { opacity:1; transform:translate(0,0) rotate(0); } to { opacity:0; transform:translate(var(--sx), var(--sy)) rotate(200deg); } }
+      /* zlata folija (93+) in holo (elitni rookie) */
+      .card.gold { border-color:#c9992a; box-shadow:0 2px 10px rgba(160,120,20,.35); }
+      .card.gold::before { content:""; position:absolute; inset:0; border-radius:9px; pointer-events:none; z-index:2;
+        background:linear-gradient(115deg, transparent 30%, rgba(255,235,170,.55) 45%, rgba(255,255,255,.9) 50%, rgba(255,235,170,.55) 55%, transparent 70%);
+        background-size:250% 100%; animation: fofoil 3.2s ease-in-out infinite; mix-blend-mode:soft-light; }
+      @keyframes fofoil { 0%,100%{background-position:120% 0;} 50%{background-position:-20% 0;} }
+      .card.gold .ovr, .card.gold .card-name { background:linear-gradient(100deg,#8a6d1a,#F0B429 40%,#fff2c9 50%,#F0B429 60%,#8a6d1a); -webkit-background-clip:text; background-clip:text; color:transparent; }
+      .card.holo { overflow:hidden; }
+      .card.holo::after { content:""; position:absolute; inset:0; border-radius:9px; pointer-events:none; opacity:.28; mix-blend-mode:color-dodge;
+        background:conic-gradient(from 180deg, #ff8a7a, #F0B429, #7ED77E, #7cc4ff, #b18cff, #ff8a7a); filter:blur(14px) saturate(1.3);
+        animation: foholo 5s linear infinite; }
+      @keyframes foholo { to { transform:rotate(1turn) scale(1.6); } }
+      .mini.gold { border-color:#c9992a; }
+      .mini.gold .mini-name { background:linear-gradient(100deg,#8a6d1a,#c9992a 45%,#F0B429 55%,#8a6d1a); -webkit-background-clip:text; background-clip:text; color:transparent; }
+      /* žig na papir */
+      .stamp { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none; z-index:4; }
+      .stamp span { font-family:'Archivo Black','Arial Black',sans-serif; font-size:14px; color:#8f1d12; border:3px solid #8f1d12;
+        padding:2px 8px; border-radius:4px; transform:rotate(-14deg); opacity:.92; mix-blend-mode:multiply; background:rgba(255,255,255,.25);
+        animation: fostamp .45s cubic-bezier(.25,1.6,.4,1) both; }
+      @keyframes fostamp { 0%{transform:rotate(-14deg) scale(3); opacity:0;} 55%{transform:rotate(-14deg) scale(.92); opacity:1;} 70%{transform:rotate(-12deg) scale(1.06);} 100%{transform:rotate(-14deg) scale(1);} }
+      .stamp-big { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none; z-index:72; }
+      .stamp-big span { font-family:'Archivo Black','Arial Black',sans-serif; font-size:34px; color:#8f1d12; border:5px solid #8f1d12;
+        padding:6px 18px; border-radius:8px; transform:rotate(-10deg); mix-blend-mode:multiply; background:rgba(255,253,247,.55);
+        animation: fostamp .5s cubic-bezier(.25,1.6,.4,1) both; }
+      /* dražba: kuverti + udarec */
+      .env-row { display:flex; gap:10px; margin:12px 0; }
+      .env { position:relative; flex:1; min-height:92px; border-radius:10px; border:2px solid #d8cdb8; background:linear-gradient(180deg,#fffdf7,#f2ead8); padding:8px; text-align:center; transition:transform .3s ease, box-shadow .3s ease; }
+      .env::before { content:""; position:absolute; left:0; right:0; top:0; height:26px; background:linear-gradient(180deg,#efe6d2,#e4d9c0); border-radius:8px 8px 0 0; clip-path:polygon(0 0, 100% 0, 50% 100%); opacity:.9; }
+      .env-who { position:relative; font-family:'Archivo Black','Arial Black',sans-serif; font-size:12px; color:#152744; margin-bottom:14px; }
+      .env-bid { position:relative; font-size:13.5px; font-weight:700; color:#1d2433; animation: fofadein .3s ease; }
+      .env-bid b { display:block; font-size:22px; color:#152744; }
+      .env-seal { position:relative; width:34px; height:34px; margin:4px auto 0; border-radius:50%; background:radial-gradient(circle at 35% 30%, #b3462f, #8f1d12); box-shadow:0 1px 4px rgba(0,0,0,.35); animation: fosealpulse 1s ease-in-out infinite; }
+      @keyframes fosealpulse { 50% { transform:scale(1.08); } }
+      .env.win { border-color:#c9992a; box-shadow:0 0 0 3px rgba(240,180,41,.4), 0 4px 14px rgba(160,120,20,.35); transform:translateY(-3px); }
+      .aucrev-res { font-size:15px; font-weight:800; text-align:center; padding:8px; border-radius:8px; animation: fofadein .3s ease; }
+      .aucrev-res.won { background:#e7f3e7; color:#1f7a3d; } .aucrev-res.lost { background:#f7e6e3; color:#8f1d12; }
+      .modal.slam { animation: foshake .4s ease; }
+      @keyframes foshake { 20%{transform:translate(-6px,3px) rotate(-.5deg);} 40%{transform:translate(5px,-3px);} 60%{transform:translate(-4px,2px);} 80%{transform:translate(3px,0);} }
+      .slam-flash { position:fixed; inset:0; background:#fff; z-index:70; pointer-events:none; animation: foflashout .35s ease-out forwards; }
+      @keyframes foflashout { from{opacity:.85;} to{opacity:0;} }
+      @keyframes fofadein { from { opacity:0; } }
+      /* premium: zrno papirja čez celo igro */
+      .fo::before { content:""; position:fixed; inset:0; pointer-events:none; opacity:.05; z-index:0;
+        background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E"); }
+      /* meni kot plakat tekme */
+      .menu { position:relative; overflow:hidden; }
+      .menu-ball { position:absolute; top:-30px; left:50%; width:340px; height:340px; margin-left:-170px; opacity:.10; pointer-events:none; animation: fospinslow 90s linear infinite; }
+      @keyframes fospinslow { to { transform:rotate(1turn); } }
+      .menu .est { position:relative; font-size:12px; letter-spacing:4px; color:#8a7c63; margin-bottom:6px; font-weight:700; }
+      .menu h1 .t1, .menu h1 .t2 { display:inline-block; animation: fotitle .6s cubic-bezier(.2,1.3,.4,1) both; }
+      .menu h1 .t1 { --dx:-60px; } .menu h1 .t2 { --dx:60px; animation-delay:.12s; }
+      @keyframes fotitle { from { opacity:0; transform:translateX(var(--dx)); } }
+      .menu .tag { animation: fofadein .5s ease .4s both; }
+      .menu-btns .bigbtn { border-left:3px dashed rgba(255,255,255,.55); }
+      .marq { overflow:hidden; white-space:nowrap; }
+      .marq-in { display:inline-block; animation: fomarq 18s linear infinite; }
+      @keyframes fomarq { to { transform:translateX(-50%); } }
       .modal-bg { animation: fofade .15s ease-out; }
       @keyframes fofade { from { opacity:0; } to { opacity:1; } }
       .modal { animation: fomodal .17s ease-out; }
@@ -2284,7 +2420,7 @@ export default function App() {
       .confetti { position:fixed; inset:0; pointer-events:none; overflow:hidden; z-index:30; }
       .confetti i { position:absolute; top:-14px; width:8px; height:13px; border-radius:1px; animation: foconf linear forwards; }
       @keyframes foconf { to { transform: translateY(105vh) rotate(600deg); opacity:.15; } }
-      @media (prefers-reduced-motion: reduce){ .fo *, .modal-bg, .modal, .toast { transition:none !important; animation:none !important; } .confetti { display:none; } }
+      @media (prefers-reduced-motion: reduce){ .fo *, .modal-bg, .modal, .toast { transition:none !important; animation:none !important; } .confetti, .slam-flash, .flip-spark { display:none !important; } }
       /* ===== NAMIZNI (desktop) VIDEZ: širši prostor + večje kartice (velja od 700px navzgor) ===== */
       @media (min-width: 700px) {
         .wrap { max-width: 960px; padding: 16px 18px 108px; }
@@ -2339,9 +2475,17 @@ export default function App() {
     return (
       <div className="fo">{css}
         <div className="wrap menu">
-          <h1>FRONT<br />OFFICE</h1>
+          {/* TODO(ChatGPT slike): hero plakat menija → public/img/menu-hero-v1.jpg kot ozadje .menu (zamenja SVG žogo) */}
+          <svg className="menu-ball" viewBox="0 0 100 100" aria-hidden="true">
+            <circle cx="50" cy="50" r="47" fill="none" stroke="#152744" strokeWidth="2.5" />
+            <path d="M50 3v94 M3 50h94 M16 15c13 11 13 59 0 70 M84 15c-13 11-13 59 0 70" fill="none" stroke="#152744" strokeWidth="2.5" />
+          </svg>
+          <div className="est">EST. 2026 · DINASTIJA ZA DINASTIJO</div>
+          <h1><span className="t1">FRONT</span><br /><span className="t2">OFFICE</span></h1>
           <div className="tag">Ti proti <b>rivalski AI dinastiji</b> — kdo osvoji več naslovov?<br />Draftaj mlade, razvij jih v zvezdnike, ujemi svoje šampionsko okno.</div>
-          {counts && <div className="menu-count">👥 {counts.players} {counts.players === 1 ? "menedžer" : counts.players === 2 ? "menedžerja" : counts.players <= 4 ? "menedžerji" : "menedžerjev"} doslej · 🎮 {counts.games} {counts.games === 1 ? "igra" : counts.games === 2 ? "igri" : counts.games <= 4 ? "igre" : "iger"}</div>}
+          {counts && (() => { const s = `👥 ${counts.players} ${counts.players === 1 ? "menedžer" : counts.players === 2 ? "menedžerja" : counts.players <= 4 ? "menedžerji" : "menedžerjev"} doslej · 🎮 ${counts.games} ${counts.games === 1 ? "igra" : counts.games === 2 ? "igri" : counts.games <= 4 ? "igre" : "iger"} · `; return (
+            <div className="menu-count marq"><div className="marq-in"><span>{s.repeat(3)}</span><span aria-hidden="true">{s.repeat(3)}</span></div></div>
+          ); })()}
           <div className="menu-btns">
             <div className="menu-group-lbl">🏆 Nova dinastija — koliko sezon?</div>
             <button className="bigbtn" onClick={() => startFranchise(3)}>3 sezone</button>
@@ -2470,6 +2614,7 @@ export default function App() {
           </div>
           {done && <div className="mrow"><button className="bigbtn" style={{ flex: 1 }} onClick={() => setScreen("play")}>Naprej na trg →</button></div>}
           {!done && <div className="hint" style={{ textAlign: "center", opacity: .7 }}>Izberi še {2 - fb.hUsed} {2 - fb.hUsed === 1 ? "temelj" : "temelja"}, da nadaljuješ.</div>}
+          {bigStamp && <div className="stamp-big"><span>{bigStamp}</span></div>}
           {offInfo && (
             <div className="modal-bg" onClick={() => setOffInfo(null)}>
               <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -2755,13 +2900,13 @@ export default function App() {
                 {POS.map((p) => {
                   const st = g.h.roster.find((c) => c.id === g.h.starters[p]);
                   return st
-                    ? <PlayerCard key={p} c={st} mini starter={g.injured.h !== st.id} injured={g.injured.h === st.id} onClick={() => tapCard(st)} />
+                    ? <PlayerCard key={p} c={st} mini starter={g.injured.h !== st.id} injured={g.injured.h === st.id} stamped={stamp && stamp.id === st.id ? stamp.txt : null} onClick={() => tapCard(st)} />
                     : <div key={p} className="slot-empty need" style={{ borderColor: POS_COLOR[p], color: POS_COLOR[p] }}><PosBadge p={p} sm /><span>manjka</span></div>;
                 })}
               </div>
               <div className="lbl" style={{ margin: "10px 0 4px" }}>Klop <span style={{ fontWeight: 500, textTransform: "none", letterSpacing: 0 }}>· tapni ↑ v peterko na kartici</span></div>
               <div className="roster-grid">
-                {bench.map((c) => <PlayerCard key={c.id} c={c} mini injured={g.injured.h === c.id} onStar={() => setStarter(c)} onClick={() => tapCard(c)} />)}
+                {bench.map((c) => <PlayerCard key={c.id} c={c} mini injured={g.injured.h === c.id} stamped={stamp && stamp.id === c.id ? stamp.txt : null} onStar={() => setStarter(c)} onClick={() => tapCard(c)} />)}
                 {Array.from({ length: Math.max(0, 5 - bench.length) }).map((_, i) => <div key={i} className="slot-empty">prosto</div>)}
               </div>
             </>;
@@ -2904,10 +3049,19 @@ export default function App() {
 
       {/* RAZKRITJE VLEČENE KARTE */}
       {reveal && (
-        <div className="modal-bg" onClick={() => setReveal(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>{reveal.disc ? "🟢 S popustom: " : "🂠 Vlekel si: "}{reveal.n}</h3>
-            <div className="auc-card"><PlayerCard c={reveal} onClick={() => {}} /></div>
+        <div className="modal-bg" onClick={() => { if (flipped) setReveal(null); else setFlipped(true); }}>
+          <div className="modal" onClick={(e) => { e.stopPropagation(); if (!flipped) setFlipped(true); }}>
+            <h3>{flipped ? <>{reveal.disc ? "🟢 S popustom: " : "🂠 Vlekel si: "}{reveal.n}</> : "🂠 Skriti kup …"}</h3>
+            <div className="auc-card flip-scene">
+              <div className={"flip-inner" + (flipped ? " flipped" : "")}>
+                <div className="flip-back"><CardBack tell={!reveal.disc && reveal.ovr >= 90 && !flipped} /></div>
+                <div className="flip-front"><PlayerCard c={reveal} onClick={() => {}} /></div>
+                {flipped && reveal.ovr >= 95 && Array.from({ length: 10 }).map((_, i) => (
+                  <span key={i} className="flip-spark" style={{ left: "50%", top: "50%", "--sx": `${Math.cos((i / 10) * 2 * Math.PI) * 90}px`, "--sy": `${Math.sin((i / 10) * 2 * Math.PI) * 90}px`, animationDelay: `${0.65 + i * 0.015}s` }} />
+                ))}
+              </div>
+            </div>
+            <div className={"flip-info" + (flipped ? " show" : "")}>
             <p>Karta je zdaj <b>v tvoji roki</b> (že označena). Kaj pomenijo številke:</p>
             <ul>
               <li><b>OVR {reveal.ovr}</b> — kakovost igralca.</li>
@@ -2924,12 +3078,13 @@ export default function App() {
             )}
             {!canSign(g.h.roster, reveal) && <div className="addbox"><div className="addstand">Trenutni izid runde — Ti <b>{proj.total}</b> · AI <b>{aiProj.total}</b></div></div>}
             <div className="mrow"><button className="bigbtn" style={{ flex: 1 }} onClick={() => setReveal(null)}>Nadaljuj</button></div>
+            </div>
           </div>
         </div>
       )}
 
       {/* DRAŽBA */}
-      {aucCard && (
+      {aucCard && !aucReveal && (
         <div className="modal-bg">
           <div className="modal">
             <h3><span className="gavelstrike"><Gavel s={20} /></span> Dražba: {aucCard.n}</h3>
@@ -2957,6 +3112,35 @@ export default function App() {
               <button className="abtn ghost" style={{ flex: 1 }} onClick={() => resolveAuction(null)}>Odstopim</button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* RAZPLET DRAŽBE — dvoboj zaprtih kuvert */}
+      {aucReveal && (
+        <div className="modal-bg">
+          <div className={"modal" + (aucStage >= 2 ? " slam" : "")} onClick={() => setAucStage((s) => (s < 2 ? 2 : s))}>
+            <h3><span className={aucStage >= 2 ? "gavelstrike" : ""}><Gavel s={20} /></span> Razplet dražbe: {surname(aucReveal.card.n)}</h3>
+            <div className="env-row">
+              <div className={"env" + (aucStage >= 2 && aucReveal.winner === "h" ? " win" : "")}>
+                <div className="env-who">TI</div>
+                <div className="env-bid">{pickStr(aucReveal.hB)}<b>{aucReveal.hV}</b></div>
+                {aucStage >= 2 && aucReveal.winner === "h" && <div className="stamp"><span>PRODANO</span></div>}
+              </div>
+              <div className={"env" + (aucStage >= 2 && aucReveal.winner === "a" ? " win" : "")}>
+                <div className="env-who">AI GM</div>
+                {aucStage >= 1 ? <div className="env-bid">{pickStr(aucReveal.aB)}<b>{aucReveal.aV}</b></div> : <div className="env-seal" title="Zaprta kuverta …" />}
+                {aucStage >= 2 && aucReveal.winner === "a" && <div className="stamp"><span>PRODANO</span></div>}
+              </div>
+            </div>
+            {aucStage >= 2 && (
+              <div className={"aucrev-res " + (aucReveal.winner === "h" ? "won" : aucReveal.winner === "a" ? "lost" : "")}>
+                {aucReveal.winner === "h" ? <>✅ {aucReveal.card.n} je TVOJ!</> : aucReveal.winner === "a" ? <>❌ {aucReveal.card.n} gre AI-ju.</> : <>⚖️ Nihče ni dal dovolj — ostaja prost na trgu.</>}
+              </div>
+            )}
+            {aucStage >= 2 && <div className="mrow"><button className="bigbtn" style={{ flex: 1 }} onClick={aucFinish}>Nadaljuj</button></div>}
+            {aucStage < 2 && <div className="hint" style={{ textAlign: "center", opacity: .75 }}>Sodnik odpira kuverti … (tapni za preskok)</div>}
+          </div>
+          {aucStage === 2 && <div className="slam-flash" />}
         </div>
       )}
 
