@@ -289,6 +289,8 @@ const taxFor = (salary, cap = CAP) => { const o = salary - cap; if (o <= 0) retu
 // ============ POMOŽNE ============
 const shuffle = (a) => { const b = [...a]; for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; } return b; };
 const surname = (n) => n.split(" ").slice(-1)[0];
+// ali uporabnik želi manj animacij (varno tudi brez window)
+const prefersReduced = () => { try { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch { return false; } };
 const spts = (c) => c.ovr + 2 * c.pm;
 const val = (c) => spts(c) - (c.ovr >= 93 ? 0.35 : 0.55) * c.sal + (c.tr === "SM" ? 4 : 0) + (c.tr === "VD" ? 3 : 0) + (c.tr === "OR" ? 2 : 0);
 const posCount = (r, p) => r.filter((c) => c.pos === p).length;
@@ -1261,7 +1263,9 @@ function CapMeter({ salary, cap = CAP }) {
   );
 }
 
-function BonusChips({ r, onExplain, coach }) {
+// čista funkcija: iz rezultata scoreRoster + coacha zgradi [labela, točke, razlaga][]
+// odvisnosti SAMO: r, coach + modulski tr (in prek njega LANG), PV, CAP, surname — brez hookov
+function buildBonusChips(r, coach) {
   const chips = [];
   const coachExpl = coach ? tr({
     lue: "🧢 Tyronn Lue: igralci z OVR 93+ štejejo 6 M$ manj v plačno maso.",
@@ -1296,6 +1300,12 @@ function BonusChips({ r, onExplain, coach }) {
   if (r.pickPts) chips.push([tr("🥇 Neporabljeni picki", "🥇 Unused picks"), r.pickPts, tr(`🥇 Neporabljeni picki ob koncu runde: vsak 🥇 +${PV.f}, vsak 🥈 +${PV.s}. Namig: pametno porabljen pick (popust na plačo, rehab, dražba) je pogosto vreden precej več kot točke v žepu.`, `🥇 Unused picks at the end of the round: each 🥇 +${PV.f}, each 🥈 +${PV.s}. Tip: a well-spent pick (salary discount, rehab, auction) is often worth far more than points in your pocket.`)]);
   if (r.tax) chips.push([tr("💸 Luksuzni davek", "💸 Luxury tax"), r.tax, tr(`💸 Luksuzni davek: plačna masa nad limitom ${r.cap || CAP} M$ — prvih 20 M$ čez po −1/M, nato po −2/M (apron). Tvoja masa: ${r.payroll} M$.`, `💸 Luxury tax: payroll above the ${r.cap || CAP} M$ cap — first 20 M$ over at −1/M, then −2/M (apron). Your payroll: ${r.payroll} M$.`)]);
   if (r.stackPen) chips.push([tr(`🚫 Preveč na poziciji (${r.stackPos.join(", ")})`, `🚫 Position logjam (${r.stackPos.join(", ")})`), r.stackPen, tr(`🚫 Prenatrpana pozicija: 3 igralci na isti poziciji (${r.stackPos.join(", ")}) → −15 vsaka. Ne kopiči poceni globine — raje razporedi 2-2-2-2-2 ali vzemi manj, boljših.`, `🚫 Overstuffed position: 3 players at the same position (${r.stackPos.join(", ")}) → −15 each. Don't hoard cheap depth — spread 2-2-2-2-2 or take fewer, better players.`)]);
+  return chips;
+}
+
+// Balatro joker-strip: kompaktne bonus ikonice na vrhu odra (nadomesti nekdanji BonusChips 🧾 gumb).
+// Prvi chip 🧾±N preklaplja popover z razčlenitvijo; ostali chipi = emoji + predznačene točke, tap = razlaga (toast).
+function BonusRow({ chips, activeIdx, onExplain }) {
   const [open, setOpen] = useState(false);
   const sum = chips.reduce((s, c) => s + c[1], 0);
   const keys = chips.map((c) => c[0]).join("|");
@@ -1309,18 +1319,32 @@ function BonusChips({ r, onExplain, coach }) {
       if (gained) { setPulse(true); const t = setTimeout(() => setPulse(false), 800); return () => clearTimeout(t); }
     }
   }, [keys]);
-  if (!chips.length) return null;
-  // kompaktna ikona 🧾 z vsoto — razčlenitev se odpre kot popover, ne kot cela vrstica
   return (
-    <span className="bonus-wrap">
-      <button type="button" className={"bonus-ico" + (pulse ? " pulse" : "") + (open ? " on" : "")} title={tr("🧾 Zakaj toliko točk?", "🧾 Why this many points?")} onClick={() => setOpen(!open)}>🧾<b>{sum >= 0 ? "+" : ""}{sum}</b></button>
-      {open && (
+    <div className="bonus-row-wrap">
+      <div className={"bonus-row" + (chips.length ? "" : " empty")}>
+        {chips.length > 0 && (
+          <button type="button" className={"bchip sum" + (pulse ? " pulse" : "") + (open ? " on" : "")}
+            title={tr("🧾 Zakaj toliko točk?", "🧾 Why this many points?")} onClick={() => setOpen(!open)}>
+            🧾<b>{sum >= 0 ? "+" : ""}{sum}</b>
+          </button>
+        )}
+        {chips.map(([l, v, ex], i) => (
+          <button key={i} type="button"
+            className={"bchip" + (v < 0 ? " neg" : "") + (fresh.has(l) ? " flash" : "") + (i === activeIdx ? " cast" : "")}
+            title={l} onClick={() => onExplain && onExplain(ex)}>
+            {l.split(" ")[0]} <b>{v > 0 ? "+" : ""}{v}</b>
+            {i === activeIdx && <span key={"f" + i} className="cast-float">{v > 0 ? "+" : ""}{v}</span>}
+          </button>
+        ))}
+        {chips.length === 0 && <span className="bonus-row-hint">{tr("— bonusi se prikažejo tu (peterka, sinergije, coach …)", "— bonuses appear here (lineup, synergies, coach …)")}</span>}
+      </div>
+      {open && chips.length > 0 && (
         <div className="bonus-pop">
           <div className="chips-hint">{tr("👆 Tapni bonus za razlago točkovanja.", "👆 Tap a bonus for a scoring explanation.")}</div>
           <div className="chips">{chips.map(([l, v, ex], i) => <button key={i} type="button" className={"chip" + (v < 0 ? " neg" : "") + (fresh.has(l) ? " flash" : "")} title={ex} onClick={() => onExplain && onExplain(ex)}>{l} {v > 0 ? "+" : ""}{v}</button>)}</div>
         </div>
       )}
-    </span>
+    </div>
   );
 }
 
@@ -1494,6 +1518,16 @@ export default function App() {
   const [logOpen, setLogOpen] = useState(false); // razširjen dnevnik (privzeto ticker)
   const [discOpen, setDiscOpen] = useState(false); // tvoj odpad — privzeto skrčen (večinoma te ne zanima)
   const [help, setHelp] = useState(null); // ⓘ pomoč za panel: 'kupi' | 'roster' | 'roka'
+  const [marketFlash, setMarketFlash] = useState(false); // 🟠 utrip Trga po kliku na draw-prompt
+  const marketFlashTimer = useRef(null);
+  const marketRef = useRef(null); // DOM panel Trga (scrollIntoView znotraj .lay-left)
+  useEffect(() => () => clearTimeout(marketFlashTimer.current), []); // počisti ob unmountu
+  // 🎰 kaskada točkovanja: steps = [{idx, pts}] (idx = indeks chipa v bonusChips), i = trenutni korak,
+  // base = total − Σ pts (izhodišče), total = končni proj.total — čisto predstavitveno stanje
+  const [casc, setCasc] = useState(null);
+  const cascTimers = useRef([]);
+  const clearCasc = () => { cascTimers.current.forEach(clearTimeout); cascTimers.current = []; };
+  useEffect(() => () => clearCasc(), []); // unmount
   const [signOpts, setSignOpts] = useState(null); // izbira ob podpisu: redna cena ali s pickom
   const [offInfo, setOffInfo] = useState(null); // ogled karte v prestopnem roku
   const [offseason, setOffseason] = useState(null); // prestopni rok med sezonami
@@ -1547,6 +1581,34 @@ export default function App() {
   const toastRef = useRef(null);
 
   const say = (m) => { setToast(m); clearTimeout(toastRef.current); toastRef.current = setTimeout(() => setToast(null), 3000); };
+
+  // 🟠 utrip + scroll Trga (klic z draw-prompta): block:"nearest" skrola interni .lay-left
+  const flashMarket = () => {
+    try { marketRef.current && marketRef.current.scrollIntoView({ behavior: prefersReduced() ? "auto" : "smooth", block: "nearest" }); } catch {}
+    clearTimeout(marketFlashTimer.current);
+    setMarketFlash(true); // ob ponovnem kliku med utripom animacija teče naprej (rAF restart je past v ozadnjih zavihkih)
+    marketFlashTimer.current = setTimeout(() => setMarketFlash(false), 1600);
+  };
+
+  // 🎰 Balatro kaskada: chipi zažarijo drug za drugim, semafor šteje korak za korakom točno do novega totala
+  const STEP_MS = 340;
+  const runCascade = (newChips, newTotal) => {
+    clearCasc();                       // nova kaskada vedno prekine/restarta staro
+    setCasc(null);
+    if (prefersReduced()) return;      // RM: brez kaskade — semafor skoči takoj (useTicker to že zna)
+    if (!newChips.length) return;
+    const steps = newChips.map((c, idx) => ({ idx, pts: c[1] }));
+    const base = newTotal - steps.reduce((s, st) => s + st.pts, 0);
+    setCasc({ steps, i: -1, base, total: newTotal });
+    steps.forEach((st, k) => {
+      cascTimers.current.push(setTimeout(() => {
+        setCasc((c) => (c ? { ...c, i: k } : c));
+        if (st.pts < 0) SFX.thud(); else SFX.card();          // mute rešuje SFX sam
+        try { navigator.vibrate && navigator.vibrate(12); } catch {}
+      }, k * STEP_MS));
+    });
+    cascTimers.current.push(setTimeout(() => { SFX.swish(); setCasc(null); }, steps.length * STEP_MS + 650)); // +650: zadnji float izzveni
+  };
 
   const maybeAuctionStart = (st) => {
     const top = st.aDisc[st.aDisc.length - 1];
@@ -2153,9 +2215,19 @@ export default function App() {
     const starters = { ...g.h.starters, [c.pos]: c.id };
     const { roster, freed } = reEvalMorale(g.h.roster, starters);
     setG({ ...g, h: { ...g.h, roster, starters } });
+    // 🎰 kaskada: nov izračun z NOVIM rosterjem/starterji — zrcalo proj iz render obsega (capFor lokalno)
+    const np = scoreRoster(roster, 0, false, starters, g.h.picks, g.h.coach, g.injured.h, g.h.deadCap, g.philosophy && g.philosophy.h, capFor(g.season), infraScoreBonus(g.h, roster));
+    runCascade(buildBonusChips(np, g.h.coach), np.total);
     say(tr(`★ ${surname(c.n)} je zdaj štartar na ${c.pos}.`, `★ ${surname(c.n)} now starts at ${c.pos}.`) + (freed.length ? tr(` 😊 ${freed.join(", ")} spet zadovoljen — vzrok odpravljen.`, ` 😊 ${freed.join(", ")} happy again — cause resolved.`) : ""));
   };
-  const optimize = () => { setG({ ...g, h: { ...g.h, starters: bestStarters(g.h.roster, g.h.coach, g.injured.h) } }); say(tr("Peterka optimizirana.", "Starting five optimized.")); };
+  const optimize = () => {
+    const starters = bestStarters(g.h.roster, g.h.coach, g.injured.h);
+    setG({ ...g, h: { ...g.h, starters } });
+    // 🎰 kaskada: zrcalo proj z optimizirano peterko
+    const np = scoreRoster(g.h.roster, 0, false, starters, g.h.picks, g.h.coach, g.injured.h, g.h.deadCap, g.philosophy && g.philosophy.h, capFor(g.season), infraScoreBonus(g.h, g.h.roster));
+    runCascade(buildBonusChips(np, g.h.coach), np.total);
+    say(tr("Peterka optimizirana.", "Starting five optimized."));
+  };
 
   const deadFor = (c) => Math.max(3, Math.ceil(c.sal / 4));
   const doWaive = () => {
@@ -2254,11 +2326,38 @@ export default function App() {
       .stage-tools { display:flex; gap:6px; align-items:center; margin-left:auto; }
       .stage-tools > .optbtn { height:30px; display:inline-flex; align-items:center; }
       .stage-tools > .infob { width:30px; height:30px; border-radius:8px; font-size:15px; }
-      .bonus-wrap { position:relative; display:inline-flex; }
-      .bonus-ico { height:30px; display:inline-flex; align-items:center; gap:4px; background:#f2e9d4; border:1px solid #e0d5bc; border-radius:8px; padding:0 8px; font-family:inherit; font-weight:800; font-size:13px; color:#4a4232; cursor:pointer; }
-      .bonus-ico.on, .bonus-ico:hover, .bonus-ico:focus-visible { border-color:#E4762B; }
-      .bonus-ico.pulse { animation: fopulse .75s ease; }
-      .bonus-pop { position:absolute; top:calc(100% + 6px); right:0; z-index:15; width:min(340px, 84vw); background:linear-gradient(180deg,#fffdf7,#faf5e8); border:2px solid #152744; border-radius:12px; padding:10px; box-shadow:0 6px 0 rgba(12,24,48,.28); }
+      /* Balatro joker-strip: vrstica bonus ikonic na vrhu odra (nadomesti nekdanji 🧾 gumb v orodjih) */
+      .bonus-row-wrap { position:relative; }
+      /* privzeto: ena vrstica, horizontalni scroll brez drsnika — kaskada teče levo→desno */
+      .bonus-row { display:flex; align-items:center; gap:5px; min-height:34px; padding:2px 0 4px;
+        flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
+      .bonus-row::-webkit-scrollbar { display:none; }
+      .bonus-row-hint { font-size:12px; color:#8a7c63; font-weight:600; white-space:nowrap; }
+      .bchip { position:relative; flex:0 0 auto; display:inline-flex; align-items:center; gap:3px;
+        background:#f2e9d4; color:#4a4232; border:1.5px solid #152744; border-radius:999px;
+        padding:3px 9px; font-family:inherit; font-weight:800; font-size:13px; cursor:pointer; }
+      .bchip b { font-family:'Barlow Condensed',sans-serif; font-size:14px; }
+      .bchip.neg { background:#fbe3e0; color:#8f2a1f; border-color:#8f2a1f; }
+      .bchip.sum { background:#152744; color:#F5EBDC; border-color:#0c1830; }
+      .bchip.sum.on, .bchip.sum:hover { border-color:#E4762B; }
+      .bchip.pulse { animation: fopulse .75s ease; }
+      .bchip.flash { animation: foflash .8s ease; }
+      /* 🎰 kaskada: aktivni chip zažari (zlati sij + tresljaj), plavajoči ±N nad njim */
+      .bchip.cast { animation: focast .34s ease; z-index:3; }
+      @keyframes focast {
+        0%   { transform:scale(1); }
+        35%  { transform:scale(1.28) rotate(-2deg); box-shadow:0 0 0 3px #F0B429, 0 0 16px 4px rgba(240,180,41,.65); border-color:#F0B429; }
+        55%  { transform:scale(1.24) rotate(2deg); }
+        75%  { transform:scale(1.26) rotate(-1deg); box-shadow:0 0 0 3px #F0B429, 0 0 12px 3px rgba(240,180,41,.5); }
+        100% { transform:scale(1); }
+      }
+      .cast-float { position:absolute; left:50%; top:-4px; transform:translateX(-50%); pointer-events:none;
+        font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:17px; color:#2E7D32;
+        text-shadow:0 1px 0 #fff; animation: focastfloat .6s ease-out forwards; }
+      .bchip.neg .cast-float { color:#C0392B; }
+      @keyframes focastfloat { 0% { opacity:0; translate:0 4px; } 20% { opacity:1; translate:0 0; } 100% { opacity:0; translate:0 -26px; } }
+      /* popover z razčlenitvijo — sidran levo na vrstico (vrstica je na vrhu odra) */
+      .bonus-pop { position:absolute; top:calc(100% + 6px); left:0; z-index:15; width:min(340px, 84vw); background:linear-gradient(180deg,#fffdf7,#faf5e8); border:2px solid #152744; border-radius:12px; padding:10px; box-shadow:0 6px 0 rgba(12,24,48,.28); }
       .capm-side { padding:8px 12px 10px; }
       .five-sep { border-top:2px dashed rgba(21,39,68,.28); margin:12px 4px 2px; }
       .roster-ctrls { display:flex; gap:6px; align-items:center; flex-wrap:wrap; row-gap:6px; }
@@ -2360,6 +2459,12 @@ export default function App() {
       .phase { margin-top:10px; background:#E4762B; color:#fff; border-radius:10px; padding:8px 12px; font-weight:700; font-size:15px; text-align:center; box-shadow:0 3px 0 #b3541a; line-height:1.3; }
       .phase.warn { background:#C0392B; box-shadow:0 3px 0 #8f2a1f; }
       .panel.draw-hi { box-shadow:0 0 0 2px #E4762B, 0 2px 6px rgba(20,25,40,.15); }
+      /* 🟠 utrip Trga po kliku na draw-prompt — 3 iteracije × 533 ms = 1.6 s (usklajeno s timeoutom v flashMarket) */
+      .panel.market-flash { animation: fomktflash .53s ease-in-out 3; }
+      @keyframes fomktflash {
+        0%,100% { box-shadow:0 0 0 2px #E4762B, 0 2px 6px rgba(20,25,40,.15); }
+        50%     { box-shadow:0 0 0 7px rgba(228,118,43,.85), 0 0 18px 4px rgba(240,180,41,.45), 0 2px 6px rgba(20,25,40,.15); }
+      }
       .steps { margin-top:10px; background:#152744; border-radius:10px; padding:8px 6px; display:flex; align-items:center; justify-content:center; gap:4px; box-shadow:0 3px 0 #0c1830; }
       .stp { display:flex; align-items:center; gap:6px; padding:4px 9px; border-radius:8px; color:#8ea3c4; font-weight:700; font-size:13px; white-space:nowrap; }
       .stp-n { width:22px; height:22px; border-radius:50%; background:#2a3f66; color:#F5EBDC; display:flex; align-items:center; justify-content:center; font-family:'Archivo Black','Arial Black',sans-serif; font-size:11px; flex-shrink:0; }
@@ -2611,6 +2716,8 @@ export default function App() {
       .confetti i { position:absolute; top:-14px; width:8px; height:13px; border-radius:1px; animation: foconf linear forwards; }
       @keyframes foconf { to { transform: translateY(105vh) rotate(600deg); opacity:.15; } }
       @media (prefers-reduced-motion: reduce){ .fo *, .modal-bg, .modal, .toast { transition:none !important; animation:none !important; } .confetti, .slam-flash, .flip-spark { display:none !important; } }
+      /* poziv k obračanju — privzeto (in v ležeči orientaciji) skrit */
+      .fo-play .rotate-note { display: none; }
       /* ===== NAMIZNI (desktop) VIDEZ: širši prostor + večje kartice (velja od 700px navzgor) ===== */
       @media (min-width: 700px) {
         .wrap { max-width: 960px; padding: 16px 18px 108px; }
@@ -2634,17 +2741,19 @@ export default function App() {
         .actions .abtn { max-width: 230px; padding: 14px 12px; font-size: 15px; }
       }
       /* ===== LEŽEČE (landscape): dvostolpični Balatro videz — pult levo, oder desno ===== */
-      /* Vsa pravila STROGO znotraj tega media query in pod .fo-play (samo igralni zaslon) — */
-      /* mobilni videz in ostali zasloni (meni, obračun, nabor, lestvica) ostanejo piksel enaki. */
-      /* Prag 980px: telefoni (tudi iPhone Pro Max ležeče = 932px) obdržijo mobilni layout. */
+      /* Vsa pravila STROGO znotraj tega media query in pod .fo-play (samo igralni zaslon). */
+      /* Prehod: orientation:landscape — VSAK ležeč viewport (tudi telefon) dobi dvostolpični layout. */
+      /* Telefonske velikosti ureja kompaktni tier (max-height: 520px) TAKOJ ZA tem blokom. */
+      /* Pokončna orientacija na .fo-play pokaže rotate-note (glej blok orientation:portrait na dnu). */
       /* POZOR: brez transform/filter/perspective na wrapperjih (fixed .actions + sticky .sb), z-indeksi nedotaknjeni. */
-      @media (min-width: 980px) {
-        .fo-play { --lay-w: 360px; height: 100vh; height: 100dvh; overflow: hidden; }
+      @media (orientation: landscape) {
+        body { margin: 0; } /* privzeti 8px margin bi sicer ustvaril lažni scroll pri height:100dvh */
+        .fo-play { --lay-w: 360px; --cardw: 138px; height: 100vh; height: 100dvh; overflow: hidden; }
         .fo-play .wrap { max-width: none; height: 100vh; height: 100dvh; padding: 0; margin: 0; display: grid; grid-template-columns: var(--lay-w) minmax(0, 1fr); }
         /* levi pult — neprekinjen temni navy s pika-teksturo kot .hdr, zlata nitka na šivu */
-        .fo-play .lay-left { grid-column: 1; min-height: 0; overflow-y: auto; padding: 12px 14px 24px; background-color: #0e1c33; background-image: radial-gradient(rgba(255,255,255,.07) 1px, transparent 1.5px); background-size: 7px 7px; border-right: 3px solid #F0B429; }
+        .fo-play .lay-left { grid-column: 1; min-height: 0; overflow-y: auto; padding: 12px 14px 24px calc(14px + env(safe-area-inset-left, 0px)); background-color: #0e1c33; background-image: radial-gradient(rgba(255,255,255,.07) 1px, transparent 1.5px); background-size: 7px 7px; border-right: 3px solid #F0B429; }
         /* desni oder — interno skrolanje; spodnji padding nadomesti mobilnih 92px za fixed .actions; rahla navy vinjeta */
-        .fo-play .lay-right { grid-column: 2; min-height: 0; overflow-y: auto; padding: 14px 18px 130px; background: radial-gradient(ellipse at 50% 0%, rgba(21,39,68,.08), transparent 60%); }
+        .fo-play .lay-right { grid-column: 2; min-height: 0; overflow-y: auto; padding: 14px calc(18px + env(safe-area-inset-right, 0px)) 130px 18px; background: radial-gradient(ellipse at 50% 0%, rgba(21,39,68,.08), transparent 60%); }
         /* akcijska vrstica ostane fixed, le zamaknjena na šiv stolpcev */
         .fo-play .actions { left: var(--lay-w); }
         .fo-play .act-row, .fo-play .actbar-prompt { max-width: 640px; }
@@ -2655,11 +2764,13 @@ export default function App() {
         .fo-play .toast { left: calc(var(--lay-w) + (100vw - var(--lay-w)) / 2); }
         /* ===== oder brez škatel — karte plavajo na kartonu ===== */
         .fo-play .lay-right > .panel { background: transparent; box-shadow: none; padding: 4px 2px; }
+        /* bonus joker-strip: na širokem odru wrap — med kaskado so vidni vsi chipi hkrati */
+        .fo-play .bonus-row { flex-wrap: wrap; overflow: visible; }
         /* pahljača kart v roki — rotate je ločena lastnost, ne podre transform animacij */
         .fo-play .hand { padding: 18px 14px 16px; gap: 0; overflow: visible; justify-content: center; }
-        .fo-play .hand .card { flex: 0 0 auto; rotate: -1.7deg; transform-origin: 50% 100%; transition: rotate .15s ease, translate .15s ease, margin .2s ease; }
-        /* stack namesto rezanja: razmik se izračuna iz števila kart (--n) — dokler je prostor do 10px, sicer prekrivanje do −110px */
-        .fo-play .hand .card:not(:first-child) { margin-left: clamp(-110px, calc((100% - var(--n, 8) * 145px) / max(1, var(--n, 8) - 1)), 10px); }
+        .fo-play .hand .card { flex: 0 0 auto; width: var(--cardw); min-width: var(--cardw); rotate: -1.7deg; transform-origin: 50% 100%; transition: rotate .15s ease, translate .15s ease, margin .2s ease; }
+        /* stack namesto rezanja: razmik iz števila kart (--n) in širine karte (--cardw) — spodnja meja 28px − --cardw pomeni »vsaki karti ostane vidnih 28 px« (namizje: −110px, korak 145px — računsko identično prejšnjima konstantama) */
+        .fo-play .hand .card:not(:first-child) { margin-left: clamp(calc(28px - var(--cardw)), calc((100% - var(--n, 8) * (var(--cardw) + 7px)) / max(1, var(--n, 8) - 1)), 10px); }
         .fo-play .hand .card:nth-child(2n) { rotate: 1.5deg; }
         .fo-play .hand .card:nth-child(3n) { rotate: -0.7deg; }
         .fo-play .hand .card:nth-child(5n) { rotate: 2.3deg; }
@@ -2668,13 +2779,107 @@ export default function App() {
         .fo-play .lay-right .roster-grid .mini:nth-child(2n) { rotate: .8deg; }
         .fo-play .lay-right .roster-grid .mini:nth-child(2n+1) { rotate: -.6deg; }
         /* ===== Balatro gumbi: čokati, nagnjeni, s trdim podstavkom; vrstica brez pasu ===== */
-        .fo-play .actions { background: transparent; padding: 0 16px 16px; }
+        .fo-play .actions { background: transparent; padding: 0 calc(16px + env(safe-area-inset-right, 0px)) calc(16px + env(safe-area-inset-bottom, 0px)) 16px; }
         .fo-play .actions .abtn { max-width: 270px; padding: 16px 16px; font-size: 17px; border-radius: 14px; border: 3px solid #0c1830; box-shadow: 0 6px 0 #0c1830, 0 12px 20px rgba(0,0,0,.3); }
         .fo-play .actions .abtn.sign { rotate: -1.2deg; }
         .fo-play .actions .abtn.drop, .fo-play .actions .abtn.go { rotate: 1.2deg; }
         .fo-play .actions .abtn:active { translate: 0 4px; box-shadow: 0 2px 0 #0c1830, 0 4px 8px rgba(0,0,0,.3); }
         .fo-play .act-hint { background: #152744; border-radius: 999px; padding: 5px 14px; }
         .fo-play .actbar-prompt { border-radius: 14px; box-shadow: 0 6px 0 #0c1830; }
+      }
+      /* ===== KOMPAKTNI TELEFONSKI TIER: isti ležeči layout, pomanjšan za viewporte ≤520px višine ===== */
+      /* Vsa pravila pod .fo-play; specifičnost ≥ izvirniku, blok stoji ZA baznim ležečim blokom. */
+      /* Enako kot zgoraj: brez transform/filter/perspective na wrapperjih (fixed .actions). */
+      @media (orientation: landscape) and (max-height: 520px) {
+        .fo-play { --lay-w: 250px; --cardw: 106px; }
+
+        /* stolpca — manjši paddingi + safe-area (gl. spec §4) */
+        .fo-play .lay-left { padding: 8px 10px 16px calc(10px + env(safe-area-inset-left, 0px)); }
+        .fo-play .lay-right { padding: 8px calc(12px + env(safe-area-inset-right, 0px)) calc(84px + env(safe-area-inset-bottom, 0px)) 12px; }
+
+        /* paneli in glava pulta */
+        .fo-play .panel { padding: 7px; margin-top: 7px; border-radius: 10px; }
+        .fo-play .hdr { padding: 6px 10px; }
+        .fo-play .lbl { font-size: 10.5px; margin-bottom: 4px; }
+        .fo-play .phase { margin-top: 7px; padding: 6px 10px; font-size: 13px; }
+
+        /* semafor: manjše številke, ODLEPLJEN (sticky bi požrl ~20 % višine pulta) */
+        .fo-play .sb { position: static; padding: 6px 8px; margin-top: 7px; }
+        .fo-play .sb-num { font-size: 22px; }
+        .fo-play .sb-mid { min-width: 78px; }
+        .fo-play .sb-lead { font-size: 13px; }
+        .fo-play .sb-delta { top: -6px; right: -22px; font-size: 12px; }
+
+        /* skriti kup + trg */
+        .fo-play .lay-left .deckbtn { flex-basis: 78px; min-height: 140px; margin: 6px 8px 10px 0; padding: 8px 6px; gap: 5px; }
+        .fo-play .deckbtn-emblem { width: 34px; height: 34px; }
+        .fo-play .deckbtn-title { font-size: 10.5px; }
+        .fo-play .deckbtn-count { font-size: 10px; padding: 1px 8px; }
+        .fo-play .deckbtn small { display: none; }
+        .fo-play .fa-row { padding: 6px 2px 2px; }
+
+        /* mini kartice (peterka/klop) — poenoti SE (bazne velikosti) in 14 Pro/Max (700px blok) */
+        .fo-play .mini { width: 92px; font-size: 11px; padding: 4px 6px; }
+        .fo-play .mini-top { font-size: 11px; }
+        .fo-play .mini-top b { font-size: 14px; }
+        .fo-play .mini-name { font-size: 11.5px; }
+        .fo-play .mini-sal { font-size: 10px; }
+        .fo-play .mini-pts { font-size: 10px; }
+        .fo-play .mini-face { width: 14px; height: 14px; }
+        .fo-play .mini-promote { margin-top: 3px; padding-top: 3px; font-size: 9.5px; }
+        .fo-play .roster-grid { gap: 5px; }
+        .fo-play .slot-empty { width: 92px; height: 64px; font-size: 11px; }
+        .fo-play .five-sep { margin: 6px 2px 0; }
+
+        /* velike karte (roka + trg + karta v modalu) — širina pride iz --cardw */
+        .fo-play .card { width: var(--cardw); min-width: var(--cardw); padding: 5px 6px; }
+        .fo-play .card-name { font-size: 12px; min-height: 24px; }
+        .fo-play .ovr { font-size: 14px; }
+        .fo-play .face { width: 38px; height: 38px; }
+        .fo-play .card-club { font-size: 10px; }
+        .fo-play .trait, .fo-play .vals { font-size: 10px; }
+        .fo-play .sal { font-size: 11px; }
+        .fo-play .ribbon { font-size: 9px; }
+        .fo-play .hand { padding: 10px 8px 8px; }
+
+        /* vrh odra: čipi + rolodeks */
+        .fo-play .stage-top { margin-bottom: 2px; }
+        .fo-play .stage-tools > .optbtn { height: 26px; font-size: 11.5px; padding: 0 8px; }
+        .fo-play .stage-tools > .infob { width: 26px; height: 26px; font-size: 13px; }
+        .fo-play .bonus-row { flex-wrap: nowrap; overflow-x: auto; min-height: 28px; } /* telefon: nazaj na en h-scroll trak */
+        .fo-play .bchip { padding: 2px 7px; font-size: 11px; } /* ~22–24 px visok chip */
+        .fo-play .bchip b { font-size: 12px; }
+        .fo-play .cast-float { font-size: 13px; }
+        .fo-play .bonus-pop { width: min(300px, 78vw); }
+        .fo-play .coach-chip { font-size: 11px; padding: 2px 9px; gap: 4px; }
+        .fo-play .rolodex { margin: 2px 0 4px; gap: 4px; }
+        .fo-play .rolo-lbl { font-size: 9.5px; }
+        .fo-play .call-chip { font-size: 10.5px; padding: 3px 8px; }
+        .fo-play .rolo-empty { font-size: 10px; }
+
+        /* akcijska vrstica: manjši čokati gumbi; namig skrit — abtn-sub že nosi isto info */
+        .fo-play .actions { padding: 0 calc(10px + env(safe-area-inset-right, 0px)) calc(8px + env(safe-area-inset-bottom, 0px)) 10px; }
+        .fo-play .act-hint { display: none; }
+        .fo-play .act-row, .fo-play .actbar-prompt { max-width: 460px; }
+        .fo-play .actions .abtn { max-width: 200px; padding: 9px 10px; font-size: 14px; border-radius: 11px; border-width: 2px; box-shadow: 0 4px 0 #0c1830, 0 8px 14px rgba(0,0,0,.3); }
+        .fo-play .abtn-sub { font-size: 10px; }
+        .fo-play .actbar-prompt { padding: 9px 10px; font-size: 12.5px; }
+
+        /* toast: ne sme viseti čez pult; modal: izkoristi dvh */
+        .fo-play .toast { max-width: calc(100vw - var(--lay-w) - 24px); padding: 8px 12px; font-size: 13px; }
+        .fo-play .modal { max-height: calc(100dvh - 32px); padding: 12px; } /* 32px = 2×16px padding .modal-bg */
+      }
+      /* ===== POKONČNO: igralni zaslon skrit, celozaslonski poziv k obračanju (samo CSS) ===== */
+      @media (orientation: portrait) {
+        .fo-play { height: 100vh; height: 100dvh; overflow: hidden; }
+        .fo-play .wrap, .fo-play .actions, .fo-play .toast { display: none; }
+        .fo-play .rotate-note { display: flex; position: fixed; inset: 0; z-index: 999;
+          flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center;
+          padding: 24px calc(20px + env(safe-area-inset-right, 0px)) calc(24px + env(safe-area-inset-bottom, 0px)) calc(20px + env(safe-area-inset-left, 0px));
+          background-color: #152744; background-image: radial-gradient(rgba(255,255,255,.07) 1px, transparent 1.5px); background-size: 7px 7px;
+          color: #F5EBDC; }
+        .fo-play .rotate-note .rn-big { font-family: 'Archivo Black','Arial Black',sans-serif; font-size: 24px; line-height: 1.25; }
+        .fo-play .rotate-note .rn-sub { font-size: 15px; opacity: .8; line-height: 1.35; max-width: 300px; }
       }
     `}</style>
   );
@@ -3032,6 +3237,10 @@ export default function App() {
   const myEff = effSalary(g.h.roster, g.h.coach);
   const capNow = capFor(g.season);
   const proj = scoreRoster(g.h.roster, 0, false, g.h.starters, g.h.picks, g.h.coach, g.injured.h, g.h.deadCap, g.philosophy && g.philosophy.h, capNow, infraScoreBonus(g.h, g.h.roster));
+  const bonusChips = buildBonusChips(proj, g.h.coach); // ena resnica za BonusRow + kaskado
+  // 🎰 progresivni seštevek med kaskado (sicer živi proj.total) + indeks aktivnega chipa v bonusChips
+  const cascH = casc ? casc.base + casc.steps.slice(0, casc.i + 1).reduce((s, st) => s + st.pts, 0) : proj.total;
+  const cascActiveIdx = casc && casc.i >= 0 ? casc.steps[casc.i].idx : -1;
   const starterCards = Object.values(proj.starters);
   // ocena rosterja (najboljša peterka) — za mejni prispevek igralca
   const rScore = (roster, side) => scoreRoster(roster, 0, false, null, g[side].picks, g[side].coach, g.injured[side], side === "h" ? (g.h.deadCap || 0) : 0, null, capNow).total;
@@ -3067,7 +3276,7 @@ export default function App() {
           </div>
         )}
 
-        <Scoreboard h={proj.total} a={aiProj.total} rosterH={g.h.roster.length} rosterA={g.a.roster.length} />
+        <Scoreboard h={cascH} a={aiProj.total} rosterH={g.h.roster.length} rosterA={g.a.roster.length} />
 
         {/* plačna masa pod semaforjem — status sodi v levi pult */}
         <div className="panel capm-side"><CapMeter salary={myEff + (g.h.deadCap || 0)} cap={capNow} /></div>
@@ -3111,7 +3320,7 @@ export default function App() {
         </div>
 
         {/* KUPI */}
-        <div className={"panel" + (drawPhase ? " draw-hi" : "")}>
+        <div ref={marketRef} className={"panel" + (drawPhase ? " draw-hi" : "") + (marketFlash ? " market-flash" : "")}>
           <div className="lbl" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}><span>{tr("Trg", "Market")} <span className="lbl-sub">{tr("— vzemi 1 karto iz kupa ali AI-jevega odpada", "— take 1 card from the deck or AI's waived pile")}</span></span><button className="infob" onClick={() => setHelp("kupi")} aria-label={tr("Pomoč: trg", "Help: market")}>?</button></div>
           <div className="piles">
             <button className="deckbtn" disabled={!drawPhase} onClick={drawDeck}>
@@ -3159,6 +3368,8 @@ export default function App() {
         <div className="lay-right">
         {/* MOJ ROSTER */}
         <div className="panel">
+          {/* Balatro joker-strip: bonusi kot ikonice na samem vrhu odra (nad .stage-top) */}
+          <BonusRow chips={bonusChips} activeIdx={cascActiveIdx} onExplain={say} />
           {/* vrh odra: identiteta levo, orodja desno — brez naslovne vrstice (projekcija je na semaforju) */}
           <div className="stage-top">
             <div className="stage-chips">
@@ -3167,7 +3378,6 @@ export default function App() {
               {g.leagueRule && <button className="coach-chip" style={{ background: "#dfe7f5", borderColor: "#b9c9e6" }} onClick={() => say(`${LEAGUE_RULES[g.leagueRule].n}: ${LEAGUE_RULES[g.leagueRule].d}`)}>{LEAGUE_RULES[g.leagueRule].ico} <b>{LEAGUE_RULES[g.leagueRule].n}</b></button>}
             </div>
             <div className="stage-tools">
-              <BonusChips r={proj} coach={g.h.coach} onExplain={say} />
               {g.h.roster.length > 0 && <button className="optbtn" onClick={optimize}>{tr("⚡ Peterka", "⚡ Lineup")}</button>}
               <button className="infob" onClick={() => setHelp("roster")} aria-label={tr("Pomoč: roster", "Help: roster")}>?</button>
             </div>
@@ -3220,14 +3430,21 @@ export default function App() {
         </div>{/* /lay-right */}
       </div>
 
+      {/* POKONČNO: poziv k obračanju — prikaz krmili izključno CSS (orientation: portrait) */}
+      <div className="rotate-note" role="status">
+        <div className="rn-big">{tr("Obrni napravo ležé 📱↻", "Rotate your device 📱↻")}</div>
+        <div className="rn-sub">{tr("Front Office se igra v ležečem načinu — dva stolpca, karte v pahljači.", "Front Office plays in landscape — two columns, fanned cards.")}</div>
+      </div>
+
       {/* AKCIJSKA VRSTICA — edini vodnik poteze */}
       {(drawPhase || actPhase) && (
         <div className="actions">
           {actPhase && <div className="act-hint">{(g.h.signedTurn || 0) >= SIGN_LIMIT ? tr("Meja podpisov (2/2) — ODVRZI 1 karto za konec poteze.", "Signing limit (2/2) — DISCARD 1 card to end the turn.") : tr("Podpiši (do 2) ali kar ODVRZI 1 karto za konec poteze.", "Sign (up to 2) or just DISCARD 1 card to end the turn.")}</div>}
+          {/* puščica ⬅️ brezpogojno: portrait skrije igro za rotate-note, dvostolpični layout (trg levo) je edini vidni */}
           <div className="act-row">
             {drawPhase ? (
-              <button key={"p" + sel} className={"actbar-prompt" + (selCard ? " nudge" : "")} onClick={() => say(tr("⬆️ Najprej vzemi karto s trga — 🂠 skriti kup ali 🟢 prosti igralci.", "⬆️ First take a card from the market — 🂠 hidden deck or 🟢 free agents."))}>
-                ⬆️ {selCard ? tr("Najprej vzemi karto s trga, nato lahko podpišeš", "First take a card from the market, then you can sign") : tr("Vzemi karto — 🂠 skriti kup ali 🟢 trg", "Take a card — 🂠 hidden deck or 🟢 market")}
+              <button key={"p" + sel} className={"actbar-prompt" + (selCard ? " nudge" : "")} onClick={() => { flashMarket(); say(tr("⬅️ Najprej vzemi karto s trga (levo) — 🂠 skriti kup ali 🟢 prosti igralci.", "⬅️ First take a card from the market (left) — 🂠 hidden deck or 🟢 free agents.")); }}>
+                ⬅️ {selCard ? tr("Najprej vzemi karto s trga, nato lahko podpišeš", "First take a card from the market, then you can sign") : tr("Vzemi karto — 🂠 skriti kup ali 🟢 trg (levo)", "Take a card — 🂠 hidden deck or 🟢 market (left)")}
               </button>
             ) : (
               <>
