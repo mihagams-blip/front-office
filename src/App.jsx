@@ -1309,19 +1309,18 @@ function BonusChips({ r, onExplain, coach }) {
       if (gained) { setPulse(true); const t = setTimeout(() => setPulse(false), 800); return () => clearTimeout(t); }
     }
   }, [keys]);
-  if (!chips.length) return <div className="chips-empty">{tr("Še brez aktivnih bonusov — lovi lastnosti, klube in kombinacije peterke.", "No active bonuses yet — chase traits, clubs and lineup combos.")}</div>;
-  const noun = LANG === "en" ? (chips.length === 1 ? "item" : "items") : (chips.length === 1 ? "postavka" : chips.length === 2 ? "postavki" : chips.length <= 4 ? "postavke" : "postavk");
+  if (!chips.length) return null;
+  // kompaktna ikona 🧾 z vsoto — razčlenitev se odpre kot popover, ne kot cela vrstica
   return (
-    <>
-      <button type="button" className={"drawer-btn" + (pulse ? " pulse" : "")} onClick={() => setOpen(!open)}>
-        <span>{tr("🧾 Zakaj toliko točk?", "🧾 Why this many points?")} · {chips.length} {noun} ({sum >= 0 ? "+" : ""}{sum})</span>
-        <span className="chev">{open ? tr("▲ skrij", "▲ hide") : tr("▼ pokaži", "▼ show")}</span>
-      </button>
-      {open && <>
-        <div className="chips-hint">{tr("👆 Tapni bonus za razlago točkovanja.", "👆 Tap a bonus for a scoring explanation.")}</div>
-        <div className="chips">{chips.map(([l, v, ex], i) => <button key={i} type="button" className={"chip" + (v < 0 ? " neg" : "") + (fresh.has(l) ? " flash" : "")} title={ex} onClick={() => onExplain && onExplain(ex)}>{l} {v > 0 ? "+" : ""}{v}</button>)}</div>
-      </>}
-    </>
+    <span className="bonus-wrap">
+      <button type="button" className={"bonus-ico" + (pulse ? " pulse" : "") + (open ? " on" : "")} title={tr("🧾 Zakaj toliko točk?", "🧾 Why this many points?")} onClick={() => setOpen(!open)}>🧾<b>{sum >= 0 ? "+" : ""}{sum}</b></button>
+      {open && (
+        <div className="bonus-pop">
+          <div className="chips-hint">{tr("👆 Tapni bonus za razlago točkovanja.", "👆 Tap a bonus for a scoring explanation.")}</div>
+          <div className="chips">{chips.map(([l, v, ex], i) => <button key={i} type="button" className={"chip" + (v < 0 ? " neg" : "") + (fresh.has(l) ? " flash" : "")} title={ex} onClick={() => onExplain && onExplain(ex)}>{l} {v > 0 ? "+" : ""}{v}</button>)}</div>
+        </div>
+      )}
+    </span>
   );
 }
 
@@ -2248,6 +2247,20 @@ export default function App() {
       .sklad-chip { background:#3a2a5c; color:#F0B429; font-weight:800; font-size:13px; padding:2px 8px; border-radius:8px; white-space:nowrap; }
       /* glava roster-sekcije: naslov levo, kontrole desno — vse kontrole enako visoke in poravnane */
       .roster-head { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:6px; flex-wrap:wrap; row-gap:6px; }
+      /* vrh odra: čipi identitete levo, orodja desno — nadomesti nekdanjo naslovno vrstico rosterja */
+      .stage-top { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; flex-wrap:wrap; margin-bottom:4px; }
+      .stage-chips { display:flex; gap:6px; flex-wrap:wrap; align-items:center; min-width:0; }
+      .stage-chips .coach-chip { margin-bottom:0; }
+      .stage-tools { display:flex; gap:6px; align-items:center; margin-left:auto; }
+      .stage-tools > .optbtn { height:30px; display:inline-flex; align-items:center; }
+      .stage-tools > .infob { width:30px; height:30px; border-radius:8px; font-size:15px; }
+      .bonus-wrap { position:relative; display:inline-flex; }
+      .bonus-ico { height:30px; display:inline-flex; align-items:center; gap:4px; background:#f2e9d4; border:1px solid #e0d5bc; border-radius:8px; padding:0 8px; font-family:inherit; font-weight:800; font-size:13px; color:#4a4232; cursor:pointer; }
+      .bonus-ico.on, .bonus-ico:hover, .bonus-ico:focus-visible { border-color:#E4762B; }
+      .bonus-ico.pulse { animation: fopulse .75s ease; }
+      .bonus-pop { position:absolute; top:calc(100% + 6px); right:0; z-index:15; width:min(340px, 84vw); background:linear-gradient(180deg,#fffdf7,#faf5e8); border:2px solid #152744; border-radius:12px; padding:10px; box-shadow:0 6px 0 rgba(12,24,48,.28); }
+      .capm-side { padding:8px 12px 10px; }
+      .five-sep { border-top:2px dashed rgba(21,39,68,.28); margin:12px 4px 2px; }
       .roster-ctrls { display:flex; gap:6px; align-items:center; flex-wrap:wrap; row-gap:6px; }
       .roster-ctrls > .sklad-chip, .roster-ctrls > .picks, .roster-ctrls > .optbtn { height:30px; display:inline-flex; align-items:center; box-sizing:border-box; padding-top:0; padding-bottom:0; }
       .roster-ctrls > .infob { width:30px; height:30px; border-radius:8px; font-size:15px; }
@@ -2620,6 +2633,49 @@ export default function App() {
         .deckbtn-emblem { font-size: 30px; }
         .actions .abtn { max-width: 230px; padding: 14px 12px; font-size: 15px; }
       }
+      /* ===== LEŽEČE (landscape): dvostolpični Balatro videz — pult levo, oder desno ===== */
+      /* Vsa pravila STROGO znotraj tega media query in pod .fo-play (samo igralni zaslon) — */
+      /* mobilni videz in ostali zasloni (meni, obračun, nabor, lestvica) ostanejo piksel enaki. */
+      /* Prag 980px: telefoni (tudi iPhone Pro Max ležeče = 932px) obdržijo mobilni layout. */
+      /* POZOR: brez transform/filter/perspective na wrapperjih (fixed .actions + sticky .sb), z-indeksi nedotaknjeni. */
+      @media (min-width: 980px) {
+        .fo-play { --lay-w: 360px; height: 100vh; height: 100dvh; overflow: hidden; }
+        .fo-play .wrap { max-width: none; height: 100vh; height: 100dvh; padding: 0; margin: 0; display: grid; grid-template-columns: var(--lay-w) minmax(0, 1fr); }
+        /* levi pult — neprekinjen temni navy s pika-teksturo kot .hdr, zlata nitka na šivu */
+        .fo-play .lay-left { grid-column: 1; min-height: 0; overflow-y: auto; padding: 12px 14px 24px; background-color: #0e1c33; background-image: radial-gradient(rgba(255,255,255,.07) 1px, transparent 1.5px); background-size: 7px 7px; border-right: 3px solid #F0B429; }
+        /* desni oder — interno skrolanje; spodnji padding nadomesti mobilnih 92px za fixed .actions; rahla navy vinjeta */
+        .fo-play .lay-right { grid-column: 2; min-height: 0; overflow-y: auto; padding: 14px 18px 130px; background: radial-gradient(ellipse at 50% 0%, rgba(21,39,68,.08), transparent 60%); }
+        /* akcijska vrstica ostane fixed, le zamaknjena na šiv stolpcev */
+        .fo-play .actions { left: var(--lay-w); }
+        .fo-play .act-row, .fo-play .actbar-prompt { max-width: 640px; }
+        .fo-play .actions .abtn { max-width: 260px; }
+        /* manjši skriti kup, da trg v ožjem pultu zadiha */
+        .fo-play .lay-left .deckbtn { flex-basis: 96px; min-height: 180px; }
+        /* toast centriran nad odrom (translateX(-50%) iz baznega pravila ostane) */
+        .fo-play .toast { left: calc(var(--lay-w) + (100vw - var(--lay-w)) / 2); }
+        /* ===== oder brez škatel — karte plavajo na kartonu ===== */
+        .fo-play .lay-right > .panel { background: transparent; box-shadow: none; padding: 4px 2px; }
+        /* pahljača kart v roki — rotate je ločena lastnost, ne podre transform animacij */
+        .fo-play .hand { padding: 18px 14px 16px; gap: 0; overflow: visible; justify-content: center; }
+        .fo-play .hand .card { flex: 0 0 auto; rotate: -1.7deg; transform-origin: 50% 100%; transition: rotate .15s ease, translate .15s ease, margin .2s ease; }
+        /* stack namesto rezanja: razmik se izračuna iz števila kart (--n) — dokler je prostor do 10px, sicer prekrivanje do −110px */
+        .fo-play .hand .card:not(:first-child) { margin-left: clamp(-110px, calc((100% - var(--n, 8) * 145px) / max(1, var(--n, 8) - 1)), 10px); }
+        .fo-play .hand .card:nth-child(2n) { rotate: 1.5deg; }
+        .fo-play .hand .card:nth-child(3n) { rotate: -0.7deg; }
+        .fo-play .hand .card:nth-child(5n) { rotate: 2.3deg; }
+        .fo-play .hand .card:hover, .fo-play .hand .card.sel { rotate: 0deg; translate: 0 -6px; z-index: 5; }
+        /* mini karte v peterki/klopi rahlo razigrane (prazna mesta ostanejo ravna) */
+        .fo-play .lay-right .roster-grid .mini:nth-child(2n) { rotate: .8deg; }
+        .fo-play .lay-right .roster-grid .mini:nth-child(2n+1) { rotate: -.6deg; }
+        /* ===== Balatro gumbi: čokati, nagnjeni, s trdim podstavkom; vrstica brez pasu ===== */
+        .fo-play .actions { background: transparent; padding: 0 16px 16px; }
+        .fo-play .actions .abtn { max-width: 270px; padding: 16px 16px; font-size: 17px; border-radius: 14px; border: 3px solid #0c1830; box-shadow: 0 6px 0 #0c1830, 0 12px 20px rgba(0,0,0,.3); }
+        .fo-play .actions .abtn.sign { rotate: -1.2deg; }
+        .fo-play .actions .abtn.drop, .fo-play .actions .abtn.go { rotate: 1.2deg; }
+        .fo-play .actions .abtn:active { translate: 0 4px; box-shadow: 0 2px 0 #0c1830, 0 4px 8px rgba(0,0,0,.3); }
+        .fo-play .act-hint { background: #152744; border-radius: 999px; padding: 5px 14px; }
+        .fo-play .actbar-prompt { border-radius: 14px; box-shadow: 0 6px 0 #0c1830; }
+      }
     `}</style>
   );
 
@@ -2989,12 +3045,16 @@ export default function App() {
   const canTrade = myTurn && !g.h.tradeUsed && g.h.roster.length > 0 && g.a.roster.length > 0;
 
   return (
-    <div className="fo">{css}
+    <div className="fo fo-play">{css}
       <div className="wrap">
+        {/* leva kolona — Balatrov pult: glava, semafor, AI, trg (na mobilnem nevtralen div) */}
+        <div className="lay-left">
         <div className="hdr">
-          <div><h1>FRONT OFFICE</h1><div className="sub">{g.franchise ? tr(`Sezona ${g.season}/${g.seasons} · naslovi ${g.titles.h}:${g.titles.a}`, `Season ${g.season}/${g.seasons} · titles ${g.titles.h}:${g.titles.a}`) : tr(`Runda ${g.round} · sezona do ${TARGET} točk`, `Round ${g.round} · season to ${TARGET} points`)}</div></div>
+          {/* med igro brez velikega naslova — samo sezona/naslovi/cilj */}
+          <div><div className="sub" style={{ fontSize: 13.5, fontWeight: 700, opacity: 1 }}>{g.franchise ? tr(`Sezona ${g.season}/${g.seasons} · naslovi ${g.titles.h}:${g.titles.a}`, `Season ${g.season}/${g.seasons} · titles ${g.titles.h}:${g.titles.a}`) : tr(`Runda ${g.round} · sezona do ${TARGET} točk`, `Round ${g.round} · season to ${TARGET} points`)}{g.franchise && g.season >= 2 && g.ownerBase ? <> · 👔 {tr("cilj", "target")} {Math.round(g.ownerBase * Math.pow(1.12, g.season - 1))}</> : null}</div></div>
           <div className="score-strip" style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span>{tr("picki", "picks")}<b style={{ fontSize: 14 }}><Ico k="f" s={14} />{g.h.picks.f} <Ico k="s" s={14} />{g.h.picks.s}{g.h.picks.w ? <> <Ico k="w" s={14} /></> : null}</b></span>
+            <span><b style={{ fontSize: 14 }}><Ico k="f" s={14} />{g.h.picks.f} <Ico k="s" s={14} />{g.h.picks.s}{g.h.picks.w ? <> <Ico k="w" s={14} /></> : null}</b></span>
+            {g.franchise && <span className="sklad-chip" title={tr("🧱 Sklad — valuta za franšizno infrastrukturo (gradiš v prestopnem roku)", "🧱 Fund — currency for franchise infrastructure (built in the transfer window)")}>🧱 {g.h.sklad || 0}</span>}
             <button onClick={() => setMusic(MUSIC.toggle())} title={music ? tr("Izklopi glasbo", "Music off") : tr("Vklopi glasbo", "Music on")} aria-label={music ? tr("Izklopi glasbo", "Music off") : tr("Vklopi glasbo", "Music on")} style={{ background: "none", border: "none", padding: 4, cursor: "pointer", lineHeight: 0, opacity: music ? 1 : 0.6 }}><Note on={music} s={19} /></button>
             <button onClick={() => setMuted(SFX.toggle())} title={muted ? tr("Vklopi zvok", "Sound on") : tr("Izklopi zvok", "Sound off")} aria-label={muted ? tr("Vklopi zvok", "Sound on") : tr("Izklopi zvok", "Sound off")} style={{ background: "none", border: "none", padding: 4, cursor: "pointer", lineHeight: 0, opacity: muted ? 0.6 : 1 }}><Speaker on={!muted} s={19} /></button>
           </div>
@@ -3008,6 +3068,9 @@ export default function App() {
         )}
 
         <Scoreboard h={proj.total} a={aiProj.total} rosterH={g.h.roster.length} rosterA={g.a.roster.length} />
+
+        {/* plačna masa pod semaforjem — status sodi v levi pult */}
+        <div className="panel capm-side"><CapMeter salary={myEff + (g.h.deadCap || 0)} cap={capNow} /></div>
 
         {/* AI — zložena ploščica, tap razširi */}
         <div className="panel">
@@ -3079,21 +3142,35 @@ export default function App() {
           )}
         </div>
 
+        {/* DNEVNIK — enovrstični ticker, tap razširi (v pultu, ne na odru) */}
+        <div className="panel">
+          <button className="ai-tile" onClick={() => setLogOpen(!logOpen)}>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div className="lbl" style={{ margin: 0 }}>{tr("Dnevnik lige", "League log")}</div>
+              {!logOpen && <div className="ai-last">{g.log[g.log.length - 1]}</div>}
+            </div>
+            <span className="chev">{logOpen ? tr("▲ skrij", "▲ hide") : tr("▼ vse", "▼ all")}</span>
+          </button>
+          {logOpen && <div className="log" style={{ marginTop: 6 }}>{[...g.log].reverse().map((l, i) => <div key={i}>{l}</div>)}</div>}
+        </div>
+        <div style={{ textAlign: "center" }}><button className="linkbtn" onClick={() => setShowRules(true)}>{tr("Pravila", "Rules")}</button></div>
+        </div>{/* /lay-left */}
+        {/* desna kolona — oder: peterka, klop, roka */}
+        <div className="lay-right">
         {/* MOJ ROSTER */}
         <div className="panel">
-          <div className="roster-head">
-            <div className="lbl" style={{ margin: 0 }}>{tr("Tvoj roster", "Your roster")} {g.h.roster.length}/10 · {tr("projekcija", "projection")} <b>{proj.total}</b>{g.franchise && g.season >= 2 && g.ownerBase ? <span style={{ fontWeight: 500, textTransform: "none", letterSpacing: 0 }}> · 👔 {tr("cilj", "target")} {Math.round(g.ownerBase * Math.pow(1.12, g.season - 1))}</span> : ""}</div>
-            <div className="roster-ctrls">
-              {g.franchise && <span className="sklad-chip" title={tr("🧱 Sklad — valuta za franšizno infrastrukturo (gradiš v prestopnem roku)", "🧱 Fund — currency for franchise infrastructure (built in the transfer window)")}>🧱 {g.h.sklad || 0}</span>}
-              <Picks p={g.h.picks} />
+          {/* vrh odra: identiteta levo, orodja desno — brez naslovne vrstice (projekcija je na semaforju) */}
+          <div className="stage-top">
+            <div className="stage-chips">
+              {g.philosophy && g.philosophy.h && <button className="coach-chip" style={{ background: "#efe6fb", borderColor: "#d8c6f0" }} onClick={() => say(philOf(g.philosophy.h).d)}>🧭 <b>{philOf(g.philosophy.h).n}</b></button>}
+              {g.h.coach && <button className="coach-chip" onClick={() => setHelp("roster")}><Ico k="cap" s={16} /> <b>{coachOf(g.h.coach).n}</b> · {coachOf(g.h.coach).t}</button>}
+              {g.leagueRule && <button className="coach-chip" style={{ background: "#dfe7f5", borderColor: "#b9c9e6" }} onClick={() => say(`${LEAGUE_RULES[g.leagueRule].n}: ${LEAGUE_RULES[g.leagueRule].d}`)}>{LEAGUE_RULES[g.leagueRule].ico} <b>{LEAGUE_RULES[g.leagueRule].n}</b></button>}
+            </div>
+            <div className="stage-tools">
+              <BonusChips r={proj} coach={g.h.coach} onExplain={say} />
               {g.h.roster.length > 0 && <button className="optbtn" onClick={optimize}>{tr("⚡ Peterka", "⚡ Lineup")}</button>}
               <button className="infob" onClick={() => setHelp("roster")} aria-label={tr("Pomoč: roster", "Help: roster")}>?</button>
             </div>
-          </div>
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            {g.philosophy && g.philosophy.h && <button className="coach-chip" style={{ background: "#efe6fb", borderColor: "#d8c6f0" }} onClick={() => say(philOf(g.philosophy.h).d)}>🧭 <b>{philOf(g.philosophy.h).n}</b></button>}
-            {g.h.coach && <button className="coach-chip" onClick={() => setHelp("roster")}><Ico k="cap" s={16} /> <b>{coachOf(g.h.coach).n}</b> · {coachOf(g.h.coach).t}</button>}
-            {g.leagueRule && <button className="coach-chip" style={{ background: "#dfe7f5", borderColor: "#b9c9e6" }} onClick={() => say(`${LEAGUE_RULES[g.leagueRule].n}: ${LEAGUE_RULES[g.leagueRule].d}`)}>{LEAGUE_RULES[g.leagueRule].ico} <b>{LEAGUE_RULES[g.leagueRule].n}</b></button>}
           </div>
           {/* ☎️ ROLODEX — klici, ki jih odigraš med sezono */}
           <div className="rolodex">
@@ -3106,13 +3183,11 @@ export default function App() {
           </div>
           {g.h.deadCap > 0 && <div className="hint red">{tr(`✂️ Dead cap: +${g.h.deadCap} M$ v plačni masi do konca runde (odpuščeni igralci).`, `✂️ Dead cap: +${g.h.deadCap} M$ on the payroll until the end of the round (waived players).`)}</div>}
           {g.h.summer && g.h.summer.length > 0 && <div className="hint" style={{ color: "#9a6a13" }}>{tr("☀️ V poletni ligi (letos ni na voljo, počasi raste):", "☀️ In summer league (unavailable this year, growing slowly):")} {g.h.summer.map((c) => `${surname(c.n)} (${c.ovr})`).join(", ")}</div>}
-          <CapMeter salary={myEff + (g.h.deadCap || 0)} cap={capNow} />
           {(() => {
             const starterIds = new Set(POS.map((p) => g.h.starters[p]).filter((id) => id != null));
             const bench = g.h.roster.filter((c) => !starterIds.has(c.id));
             const tapCard = (c) => { if (waiveMode) { setWaiveTarget(c); return; } setInspect({ card: c, side: "h" }); };
             return <>
-              <div className="lbl" style={{ margin: "10px 0 4px" }}>{tr("★ Prva peterka", "★ Starting five")}</div>
               <div className="roster-grid">
                 {POS.map((p) => {
                   const st = g.h.roster.find((c) => c.id === g.h.starters[p]);
@@ -3121,20 +3196,18 @@ export default function App() {
                     : <div key={p} className="slot-empty need" style={{ borderColor: POS_COLOR[p], color: POS_COLOR[p] }}><PosBadge p={p} sm /><span>{tr("manjka", "missing")}</span></div>;
                 })}
               </div>
-              <div className="lbl" style={{ margin: "10px 0 4px" }}>{tr("Klop", "Bench")} <span style={{ fontWeight: 500, textTransform: "none", letterSpacing: 0 }}>{tr("· tapni ↑ v peterko na kartici", "· tap ↑ on a card to start him")}</span></div>
+              <div className="five-sep" aria-hidden="true" />
               <div className="roster-grid">
                 {bench.map((c) => <PlayerCard key={c.id} c={c} mini injured={g.injured.h === c.id} stamped={stamp && stamp.id === c.id ? stamp.txt : null} onStar={() => setStarter(c)} onClick={() => tapCard(c)} />)}
                 {Array.from({ length: Math.max(0, 5 - bench.length) }).map((_, i) => <div key={i} className="slot-empty">{tr("prosto", "open")}</div>)}
               </div>
             </>;
           })()}
-          <BonusChips r={proj} coach={g.h.coach} onExplain={say} />
         </div>
 
-        {/* ROKA */}
+        {/* ROKA — brez naslova, pahljača pove sama; --n za samodejno prekrivanje, ko zmanjka prostora */}
         <div className="panel">
-          <div className="lbl" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><span>{tr(`Tvoja roka (${g.h.hand.length})`, `Your hand (${g.h.hand.length})`)}</span><button className="infob" onClick={() => setHelp("roka")} aria-label={tr("Pomoč: roka", "Help: hand")}>?</button></div>
-          <div className="hand">
+          <div className="hand" style={{ "--n": g.h.hand.length }}>
             {g.h.hand.map((c) => <PlayerCard key={c.id} c={c} selected={sel === c.id} onClick={() => setSel(sel === c.id ? null : c.id)} />)}
             {g.h.hand.length === 0 && <span style={{ fontSize: 13, color: "#8a7c63" }}>{tr("Roka je prazna.", "Your hand is empty.")}</span>}
           </div>
@@ -3144,18 +3217,7 @@ export default function App() {
           </>}
         </div>
 
-        {/* DNEVNIK — enovrstični ticker, tap razširi */}
-        <div className="panel">
-          <button className="ai-tile" onClick={() => setLogOpen(!logOpen)}>
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <div className="lbl" style={{ margin: 0 }}>{tr("Dnevnik lige", "League log")}</div>
-              {!logOpen && <div className="ai-last">{g.log[g.log.length - 1]}</div>}
-            </div>
-            <span className="chev">{logOpen ? tr("▲ skrij", "▲ hide") : tr("▼ vse", "▼ all")}</span>
-          </button>
-          {logOpen && <div className="log" style={{ marginTop: 6 }}>{[...g.log].reverse().map((l, i) => <div key={i}>{l}</div>)}</div>}
-        </div>
-        <div style={{ textAlign: "center" }}><button className="linkbtn" onClick={() => setShowRules(true)}>{tr("Pravila", "Rules")}</button></div>
+        </div>{/* /lay-right */}
       </div>
 
       {/* AKCIJSKA VRSTICA — edini vodnik poteze */}
