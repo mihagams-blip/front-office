@@ -2745,18 +2745,20 @@ export default function App() {
       }
       /* ===== LEŽEČE (landscape): dvostolpični Balatro videz — pult levo, oder desno ===== */
       /* Vsa pravila STROGO znotraj tega media query in pod .fo-play (samo igralni zaslon). */
-      /* Prehod: orientation:landscape — VSAK ležeč viewport (tudi telefon) dobi dvostolpični layout. */
-      /* Telefonske velikosti ureja kompaktni tier (max-height: 520px) TAKOJ ZA tem blokom. */
-      /* Pokončna orientacija na .fo-play pokaže rotate-note (glej blok orientation:portrait na dnu). */
-      /* POZOR: brez transform/filter/perspective na wrapperjih (fixed .actions + sticky .sb), z-indeksi nedotaknjeni. */
-      @media (orientation: landscape) {
+      /* Prehod: VSAK ležeč viewport + pokončni telefon/tablica (≤1024px) — tam celo igro zavrtimo za 90° (blok na dnu),
+         zato mora dvostolpični layout veljati tudi pokončno. Deluje tudi ob zaklepu vrtenja na iPhonu! */
+      /* Telefonske velikosti ureja kompaktni tier TAKOJ ZA tem blokom. */
+      /* Fluidni enoti --uw/--uh = 1 % VIZUALNE širine/višine; v zavrtenem pokončnem načinu sta osi zamenjani (dvh/dvw). */
+      /* POZOR: brez transform/filter/perspective na lay-wrapperjih (fixed .actions + sticky .sb), z-indeksi nedotaknjeni. */
+      @media (orientation: landscape), (orientation: portrait) and (max-width: 1024px) {
         html, body { margin: 0; overscroll-behavior: none; } /* margin bi delal lažni scroll; overscroll-behavior ubije pull-to-refresh */
         /* NIKOLI SCROLLA: cela igra živi v 100dvh, vse se skalira; ekspanzije (AI, dnevnik) so plavajoči popupi, ne inline push.
            Fluidni žetoni: karte/mini/pult se s clamp() prilagodijo viewportu (širina iz vw, višina iz dvh) — kot Balatro. */
-        .fo-play { --lay-w: clamp(232px, 27vw, 360px); --cardw: clamp(66px, 11.5vw, 138px);
-          --miniw: clamp(70px, calc((100vw - var(--lay-w) - 74px) / 5), 152px); --minih: clamp(52px, 14dvh, 96px);
+        .fo-play { --uw: 1vw; --uh: 1dvh; /* vizualni enoti — zavrteni pokončni blok ju zamenja */
+          --lay-w: clamp(232px, calc(var(--uw) * 27), 360px); --cardw: clamp(66px, calc(var(--uw) * 11.5), 138px);
+          --miniw: clamp(70px, calc((var(--uw) * 100 - var(--lay-w) - 74px) / 5), 152px); --minih: clamp(52px, calc(var(--uh) * 14), 96px);
           height: 100vh; height: 100dvh; min-height: 0; overflow: hidden; overscroll-behavior: none; }
-        .fo-play .wrap { max-width: none; height: 100vh; height: 100dvh; padding: 0; margin: 0; display: grid; grid-template-columns: var(--lay-w) minmax(0, 1fr); overflow: hidden; }
+        .fo-play .wrap { max-width: none; height: 100%; padding: 0; margin: 0; display: grid; grid-template-columns: var(--lay-w) minmax(0, 1fr); overflow: hidden; }
         /* levi pult — neprekinjen navy s pika-teksturo, zlata nitka; flex stolpec, BREZ scrolla (vsebina se stisne / ekspanzije plavajo) */
         .fo-play .lay-left { grid-column: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 6px; padding: 10px 12px calc(12px + env(safe-area-inset-bottom, 0px)) calc(12px + env(safe-area-inset-left, 0px)); background-color: #0e1c33; background-image: radial-gradient(rgba(255,255,255,.07) 1px, transparent 1.5px); background-size: 7px 7px; border-right: 3px solid #F0B429; }
         .fo-play .lay-left > * { margin-top: 0 !important; flex: 0 0 auto; } /* razmik dela gap; nič se ne razteza čez rob */
@@ -2772,22 +2774,22 @@ export default function App() {
         /* skriti kup se skalira z višino; trg-panel je edini flex-raztezni v pultu */
         .fo-play .market-panel { flex: 1 1 auto; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
         .fo-play .market-panel .piles { min-height: 0; }
-        .fo-play .lay-left .deckbtn { flex-basis: clamp(88px, 15vw, 112px); min-height: clamp(96px, 22dvh, 200px); }
+        .fo-play .lay-left .deckbtn { flex-basis: clamp(88px, calc(var(--uw) * 15), 112px); min-height: clamp(96px, calc(var(--uh) * 22), 200px); }
         .fo-play .lay-left .fa-row { overflow: hidden; }
-        .fo-play .lay-left .fa-row .card { width: clamp(56px, 9vw, 96px); min-width: clamp(56px, 9vw, 96px); }
+        .fo-play .lay-left .fa-row .card { width: clamp(56px, calc(var(--uw) * 9), 96px); min-width: clamp(56px, calc(var(--uw) * 9), 96px); }
         /* mini kartice (peterka/klop) — širina 5-čez-oder, višina iz dvh */
         .fo-play .lay-right .mini, .fo-play .lay-right .slot-empty { width: var(--miniw); min-width: var(--miniw); }
         .fo-play .lay-right .slot-empty { height: var(--minih); }
-        .fo-play .lay-right .roster-grid { gap: clamp(4px, .8vw, 8px); flex-wrap: nowrap; }
+        .fo-play .lay-right .roster-grid { gap: clamp(4px, calc(var(--uw) * .8), 8px); flex-wrap: nowrap; }
         /* hand karte: širina iz --cardw (že fluid) — nič drugega */
         /* AI + dnevnik ekspanzija = plavajoči popup, NE inline push (oder ostane fiksen) */
         .fo-play .lay-left > .panel { position: relative; }
         .fo-play .panel-pop { position: absolute; left: 6px; right: 6px; top: calc(100% - 2px); z-index: 18;
-          max-height: 62dvh; overflow-y: auto; overscroll-behavior: contain;
+          max-height: calc(var(--uh) * 62); overflow-y: auto; overscroll-behavior: contain;
           background: linear-gradient(180deg,#fffdf7,#faf5e8); border: 2px solid #152744; border-radius: 12px;
           padding: 8px 10px; box-shadow: 0 10px 24px rgba(8,16,32,.5); }
         /* toast centriran nad odrom (translateX(-50%) iz baznega pravila ostane) */
-        .fo-play .toast { left: calc(var(--lay-w) + (100vw - var(--lay-w)) / 2); }
+        .fo-play .toast { left: calc(var(--lay-w) + (var(--uw) * 100 - var(--lay-w)) / 2); }
         /* ===== oder brez škatel — karte plavajo na kartonu ===== */
         .fo-play .lay-right > .panel { background: transparent; box-shadow: none; padding: 4px 2px; }
         /* bonus joker-strip: na širokem odru wrap — med kaskado so vidni vsi chipi hkrati */
@@ -2816,8 +2818,8 @@ export default function App() {
       /* ===== "VSE PAŠE" TIER: velja za VSA ležeča okna nižja od namizja (≤760px višine) — telefon in tablica.
          Velikosti so zvezno vezane na dvh, zato višje okno dobi večje karte, a vedno brez scrolla. ===== */
       /* Vsa pravila pod .fo-play; specifičnost ≥ izvirniku, blok stoji ZA baznim ležečim blokom. */
-      @media (orientation: landscape) and (max-height: 760px) {
-        .fo-play { --lay-w: clamp(232px, 27vw, 300px); --cardw: clamp(96px, 15dvh, 150px); }
+      @media (orientation: landscape) and (max-height: 760px), (orientation: portrait) and (max-width: 760px) {
+        .fo-play { --lay-w: clamp(232px, calc(var(--uw) * 27), 300px); --cardw: clamp(96px, calc(var(--uh) * 15), 150px); }
 
         /* stolpca — manjši paddingi + safe-area (gl. spec §4) */
         .fo-play .lay-left { padding: 8px 10px 16px calc(10px + env(safe-area-inset-left, 0px)); }
@@ -2876,7 +2878,7 @@ export default function App() {
         .fo-play .bchip { padding: 2px 7px; font-size: 11px; } /* ~22–24 px visok chip */
         .fo-play .bchip b { font-size: 12px; }
         .fo-play .cast-float { font-size: 13px; }
-        .fo-play .bonus-pop { width: min(300px, 78vw); }
+        .fo-play .bonus-pop { width: min(300px, calc(var(--uw) * 78)); }
         .fo-play .coach-chip { font-size: 11px; padding: 2px 9px; gap: 4px; }
         .fo-play .rolodex { margin: 2px 0 4px; gap: 4px; }
         .fo-play .rolo-lbl { font-size: 9.5px; }
@@ -2892,8 +2894,8 @@ export default function App() {
         .fo-play .actbar-prompt { padding: 9px 10px; font-size: 12.5px; }
 
         /* toast: ne sme viseti čez pult; modal: izkoristi dvh */
-        .fo-play .toast { max-width: calc(100vw - var(--lay-w) - 24px); padding: 8px 12px; font-size: 13px; }
-        .fo-play .modal { max-height: calc(100dvh - 32px); padding: 12px; } /* 32px = 2×16px padding .modal-bg */
+        .fo-play .toast { max-width: calc(var(--uw) * 100 - var(--lay-w) - 24px); padding: 8px 12px; font-size: 13px; }
+        .fo-play .modal { max-height: calc(var(--uh) * 100 - 32px); padding: 12px; } /* 32px = 2×16px padding .modal-bg */
 
         /* ===== NIKOLI SCROLLA: karte v roki + mini so kompaktne (kot Balatro) — poln detajl na tap (inspect) ===== */
         /* roka: skrij gostobesedne vrstice, pomanjšaj obraz → ~110px namesto ~190px; OVR/pozicija/plača/vpliv ostanejo */
@@ -2951,14 +2953,14 @@ export default function App() {
         .fo-play .lay-right .mini .mini-top b { font-size: 12.5px; }
         .fo-play .lay-right .mini .mini-name { margin: 1px 0; }
         /* nižja prazna mesta + tanjša rezerva za (tanke) gumbe → oder se poravna v 375px */
-        .fo-play { --minih: clamp(44px, 12dvh, 96px); }
+        .fo-play { --minih: clamp(44px, calc(var(--uh) * 12), 96px); }
         .fo-play .lay-right { padding-bottom: calc(52px + env(safe-area-inset-bottom, 0px)); } /* rezerva ≥ višina gumbov, da roka ne pride podnje */
         .fo-play .hand .card { padding: 3px 5px; }
         .fo-play .hand .card .face { width: 24px; height: 24px; }
         .fo-play .hand { padding: 5px 6px 2px; }
 
         /* ===== MODALI SE PRILAGODIJO (nikoli scrolla): izbira coacha/filozofije v 2 stolpca, kompaktno ===== */
-        .fo-play .modal { max-width: min(700px, 95vw); max-height: calc(100dvh - 14px); padding: 10px 12px; }
+        .fo-play .modal { max-width: min(700px, calc(var(--uw) * 95)); max-height: calc(var(--uh) * 100 - 14px); padding: 10px 12px; }
         .fo-play .modal h3 { font-size: 15.5px; margin-bottom: 3px; }
         .fo-play .modal > p, .fo-play .modal .evt-text { font-size: 11px; line-height: 1.3; margin-bottom: 6px; }
         .fo-play .modal .coachbtn { display: inline-block; vertical-align: top; width: calc(50% - 6px); margin: 0 3px 6px; padding: 6px 9px; }
@@ -2977,22 +2979,32 @@ export default function App() {
 
         /* ===== ZVEZNA VIŠINSKA SKALA: na višjih ležečih zaslonih (tablica) karte zrastejo in napolnijo prostor,
            na telefonu se skrčijo — vedno brez scrolla (te vrstice so ZADNJE, zato povozijo fiksne px zgoraj) ===== */
-        .fo-play { --minih: clamp(40px, 10.5dvh, 100px); }
-        .fo-play .hand .card .face { width: clamp(22px, 5.2dvh, 44px); height: clamp(22px, 5.2dvh, 44px); }
+        .fo-play { --minih: clamp(40px, calc(var(--uh) * 10.5), 100px); }
+        .fo-play .hand .card .face { width: clamp(22px, calc(var(--uh) * 5.2), 44px); height: clamp(22px, calc(var(--uh) * 5.2), 44px); }
         .fo-play .hand .card .trait { display: none; } /* lastnost skrita v roki (pozicija je na znački, detajl na tap) — sprosti višino nad gumbi */
-        .fo-play .hand .card .card-name { font-size: clamp(11px, 2.5dvh, 15px); min-height: 0; }
-        .fo-play .hand .card .ovr { font-size: clamp(13px, 3dvh, 20px); }
-        .fo-play .hand .card .trait { font-size: clamp(9.5px, 2dvh, 12px); }
-        .fo-play .hand .card .sal { font-size: clamp(10px, 2.2dvh, 13px); }
-        .fo-play .hand .card .pm { font-size: clamp(9px, 2dvh, 12px); }
-        .fo-play .lay-right .mini .mini-face { width: clamp(11px, 2.5dvh, 16px); height: clamp(11px, 2.5dvh, 16px); }
-        .fo-play .lay-right .mini .mini-name { font-size: clamp(10px, 2.3dvh, 13.5px); }
-        .fo-play .lay-right .mini .mini-top b { font-size: clamp(12px, 2.8dvh, 17px); }
-        .fo-play .lay-right .mini .mini-sal { font-size: clamp(9px, 1.9dvh, 12px); }
-        .fo-play .lay-right .mini .mini-top { font-size: clamp(10px, 2.1dvh, 13px); }
+        .fo-play .hand .card .card-name { font-size: clamp(11px, calc(var(--uh) * 2.5), 15px); min-height: 0; }
+        .fo-play .hand .card .ovr { font-size: clamp(13px, calc(var(--uh) * 3), 20px); }
+        .fo-play .hand .card .trait { font-size: clamp(9.5px, calc(var(--uh) * 2), 12px); }
+        .fo-play .hand .card .sal { font-size: clamp(10px, calc(var(--uh) * 2.2), 13px); }
+        .fo-play .hand .card .pm { font-size: clamp(9px, calc(var(--uh) * 2), 12px); }
+        .fo-play .lay-right .mini .mini-face { width: clamp(11px, calc(var(--uh) * 2.5), 16px); height: clamp(11px, calc(var(--uh) * 2.5), 16px); }
+        .fo-play .lay-right .mini .mini-name { font-size: clamp(10px, calc(var(--uh) * 2.3), 13.5px); }
+        .fo-play .lay-right .mini .mini-top b { font-size: clamp(12px, calc(var(--uh) * 2.8), 17px); }
+        .fo-play .lay-right .mini .mini-sal { font-size: clamp(9px, calc(var(--uh) * 1.9), 12px); }
+        .fo-play .lay-right .mini .mini-top { font-size: clamp(10px, calc(var(--uh) * 2.1), 13px); }
       }
-      /* ===== POKONČNO: igralni zaslon skrit, celozaslonski poziv k obračanju (samo CSS) ===== */
-      @media (orientation: portrait) {
+      /* ===== POKONČNO ≤1024px (telefon/tablica): PRISILNA LEŽEČA — cela igra zavrtena za 90°. =====
+         Deluje tudi ob vklopljenem zaklepu vrtenja (iOS/Android): uporabnik telefon samo fizično obrne.
+         transform naredi .fo containing block za fixed potomce (.actions, modali, toast) → zavrtijo se skupaj. */
+      @media (orientation: portrait) and (max-width: 1024px) {
+        html, body { margin: 0; overflow: hidden; overscroll-behavior: none; }
+        /* .fo = ležeče platno: širina = fizična višina, višina = fizična širina; zavrti okrog levega zgornjega kota */
+        .fo { position: fixed; top: 0; left: 100vw; left: 100dvw; width: 100vh; width: 100dvh; height: 100vw; height: 100dvw;
+          min-height: 0; transform: rotate(90deg); transform-origin: left top; overflow-y: auto; overflow-x: hidden; }
+        .fo-play { --uw: 1dvh; --uh: 1dvw; overflow: hidden; } /* zamenjani osi fluidnih enot; igralni zaslon brez scrolla */
+      }
+      /* ===== POKONČNO >1024px (ozko namizno okno): poziv k obračanju (samo CSS) ===== */
+      @media (orientation: portrait) and (min-width: 1025px) {
         html, body { overscroll-behavior: none; } /* tudi pokončno brez pull-to-refresh */
         .fo-play { height: 100vh; height: 100dvh; min-height: 0; overflow: hidden; }
         .fo-play .wrap, .fo-play .actions, .fo-play .toast { display: none; }
@@ -3543,7 +3555,7 @@ export default function App() {
         </div>{/* /lay-right */}
       </div>
 
-      {/* POKONČNO: poziv k obračanju — prikaz krmili izključno CSS (orientation: portrait) */}
+      {/* POKONČNO >1024px (namizje): poziv k obračanju — na telefonu/tablici se namesto tega cela igra zavrti (CSS) */}
       <div className="rotate-note" role="status">
         <div className="rn-big">{tr("Obrni napravo ležé 📱↻", "Rotate your device 📱↻")}</div>
         <div className="rn-sub">{tr("Front Office se igra v ležečem načinu — dva stolpca, karte v pahljači.", "Front Office plays in landscape — two columns, fanned cards.")}</div>
