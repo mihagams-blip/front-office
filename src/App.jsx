@@ -1528,6 +1528,29 @@ export default function App() {
   const cascTimers = useRef([]);
   const clearCasc = () => { cascTimers.current.forEach(clearTimeout); cascTimers.current = []; };
   useEffect(() => () => clearCasc(), []); // unmount
+  // ⬛ SAMODEJNO PRILEGANJE ne-igralnih zaslonov (meni, draft, obračun, prestopni rok, lestvica):
+  // izmeri naravno velikost vsebine in jo z transform:scale pomanjša, da se VEDNO prilega viewportu — brez scrolla, nič odrezano.
+  // Igralni zaslon (.fo-play) ima svoj fluidni no-scroll dizajn, zato ga NE skaliramo (selektor ga izpusti).
+  useEffect(() => {
+    const fitScreen = () => {
+      const wrap = document.querySelector(".fo:not(.fo-play) > .wrap");
+      if (!wrap) return;
+      const box = wrap.parentElement; // .fo (v ležečem/zavrtenem načinu flex-centriran, overflow:hidden)
+      wrap.style.setProperty("--fit", "1"); // izmeri pri naravni velikosti
+      const availH = box.clientHeight, availW = box.clientWidth;
+      const ch = wrap.scrollHeight, cw = wrap.scrollWidth;
+      if (!ch || !cw || !availH || !availW) return;
+      let s = Math.min(1, (availH - 6) / ch, (availW - 6) / cw);
+      if (!isFinite(s) || s <= 0) s = 1;
+      wrap.style.setProperty("--fit", s.toFixed(4));
+    };
+    fitScreen();
+    const t1 = setTimeout(fitScreen, 60);
+    const t2 = setTimeout(fitScreen, 280); // po naložitvi pisav/slik ponovno
+    window.addEventListener("resize", fitScreen);
+    window.addEventListener("orientationchange", fitScreen);
+    return () => { clearTimeout(t1); clearTimeout(t2); window.removeEventListener("resize", fitScreen); window.removeEventListener("orientationchange", fitScreen); };
+  }, [screen, g]);
   const [signOpts, setSignOpts] = useState(null); // izbira ob podpisu: redna cena ali s pickom
   const [offInfo, setOffInfo] = useState(null); // ogled karte v prestopnem roku
   const [offseason, setOffseason] = useState(null); // prestopni rok med sezonami
@@ -2752,6 +2775,12 @@ export default function App() {
       /* POZOR: brez transform/filter/perspective na lay-wrapperjih (fixed .actions + sticky .sb), z-indeksi nedotaknjeni. */
       @media (orientation: landscape), (orientation: portrait) and (max-width: 1024px) {
         html, body { margin: 0; overscroll-behavior: none; } /* margin bi delal lažni scroll; overscroll-behavior ubije pull-to-refresh */
+        /* ===== NE-IGRALNI ZASLONI (meni, draft, obračun, prestopni rok, lestvica): vedno v celoti na zaslon =====
+           .fo je flex-centriran + overflow:hidden; JS (fitScreen) pomanjša .wrap prek --fit, da se prilega brez scrolla/rezanja.
+           Višja specifičnost (:not = razred) povozi splošni .fo{overflow-y:auto} iz zavrtenega bloka. */
+        .fo:not(.fo-play) { display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        .fo:not(.fo-play) > .wrap { margin: 0; max-height: none; max-width: none; overflow: visible;
+          transform: scale(var(--fit, 1)); transform-origin: center center; flex: 0 0 auto; }
         /* NIKOLI SCROLLA: cela igra živi v 100dvh, vse se skalira; ekspanzije (AI, dnevnik) so plavajoči popupi, ne inline push.
            Fluidni žetoni: karte/mini/pult se s clamp() prilagodijo viewportu (širina iz vw, višina iz dvh) — kot Balatro. */
         .fo-play { --uw: 1vw; --uh: 1dvh; /* vizualni enoti — zavrteni pokončni blok ju zamenja */
