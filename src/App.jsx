@@ -2747,8 +2747,10 @@ export default function App() {
       /* Pokončna orientacija na .fo-play pokaže rotate-note (glej blok orientation:portrait na dnu). */
       /* POZOR: brez transform/filter/perspective na wrapperjih (fixed .actions + sticky .sb), z-indeksi nedotaknjeni. */
       @media (orientation: landscape) {
-        body { margin: 0; } /* privzeti 8px margin bi sicer ustvaril lažni scroll pri height:100dvh */
-        .fo-play { --lay-w: 360px; --cardw: 138px; height: 100vh; height: 100dvh; overflow: hidden; }
+        html, body { margin: 0; overscroll-behavior: none; } /* margin bi delal lažni scroll; overscroll-behavior ubije pull-to-refresh */
+        /* min-height:0 povozi bazni .fo min-height:100vh — sicer bi na telefonu stran presegla 100dvh (skrivalnica za naslovno vrstico) */
+        .fo-play { --lay-w: 360px; --cardw: 138px; height: 100vh; height: 100dvh; min-height: 0; overflow: hidden; overscroll-behavior: none; }
+        .fo-play .lay-left, .fo-play .lay-right { overscroll-behavior: contain; } /* interni scroll ne "prebije" v pull-to-refresh */
         .fo-play .wrap { max-width: none; height: 100vh; height: 100dvh; padding: 0; margin: 0; display: grid; grid-template-columns: var(--lay-w) minmax(0, 1fr); }
         /* levi pult — neprekinjen temni navy s pika-teksturo kot .hdr, zlata nitka na šivu */
         .fo-play .lay-left { grid-column: 1; min-height: 0; overflow-y: auto; padding: 12px 14px 24px calc(14px + env(safe-area-inset-left, 0px)); background-color: #0e1c33; background-image: radial-gradient(rgba(255,255,255,.07) 1px, transparent 1.5px); background-size: 7px 7px; border-right: 3px solid #F0B429; }
