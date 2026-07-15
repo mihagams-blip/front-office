@@ -2748,20 +2748,41 @@ export default function App() {
       /* POZOR: brez transform/filter/perspective na wrapperjih (fixed .actions + sticky .sb), z-indeksi nedotaknjeni. */
       @media (orientation: landscape) {
         html, body { margin: 0; overscroll-behavior: none; } /* margin bi delal lažni scroll; overscroll-behavior ubije pull-to-refresh */
-        /* min-height:0 povozi bazni .fo min-height:100vh — sicer bi na telefonu stran presegla 100dvh (skrivalnica za naslovno vrstico) */
-        .fo-play { --lay-w: 360px; --cardw: 138px; height: 100vh; height: 100dvh; min-height: 0; overflow: hidden; overscroll-behavior: none; }
-        .fo-play .lay-left, .fo-play .lay-right { overscroll-behavior: contain; } /* interni scroll ne "prebije" v pull-to-refresh */
-        .fo-play .wrap { max-width: none; height: 100vh; height: 100dvh; padding: 0; margin: 0; display: grid; grid-template-columns: var(--lay-w) minmax(0, 1fr); }
-        /* levi pult — neprekinjen temni navy s pika-teksturo kot .hdr, zlata nitka na šivu */
-        .fo-play .lay-left { grid-column: 1; min-height: 0; overflow-y: auto; padding: 12px 14px 24px calc(14px + env(safe-area-inset-left, 0px)); background-color: #0e1c33; background-image: radial-gradient(rgba(255,255,255,.07) 1px, transparent 1.5px); background-size: 7px 7px; border-right: 3px solid #F0B429; }
-        /* desni oder — interno skrolanje; spodnji padding nadomesti mobilnih 92px za fixed .actions; rahla navy vinjeta */
-        .fo-play .lay-right { grid-column: 2; min-height: 0; overflow-y: auto; padding: 14px calc(18px + env(safe-area-inset-right, 0px)) 130px 18px; background: radial-gradient(ellipse at 50% 0%, rgba(21,39,68,.08), transparent 60%); }
+        /* NIKOLI SCROLLA: cela igra živi v 100dvh, vse se skalira; ekspanzije (AI, dnevnik) so plavajoči popupi, ne inline push.
+           Fluidni žetoni: karte/mini/pult se s clamp() prilagodijo viewportu (širina iz vw, višina iz dvh) — kot Balatro. */
+        .fo-play { --lay-w: clamp(232px, 27vw, 360px); --cardw: clamp(66px, 11.5vw, 138px);
+          --miniw: clamp(70px, calc((100vw - var(--lay-w) - 74px) / 5), 152px); --minih: clamp(52px, 14dvh, 96px);
+          height: 100vh; height: 100dvh; min-height: 0; overflow: hidden; overscroll-behavior: none; }
+        .fo-play .wrap { max-width: none; height: 100vh; height: 100dvh; padding: 0; margin: 0; display: grid; grid-template-columns: var(--lay-w) minmax(0, 1fr); overflow: hidden; }
+        /* levi pult — neprekinjen navy s pika-teksturo, zlata nitka; flex stolpec, BREZ scrolla (vsebina se stisne / ekspanzije plavajo) */
+        .fo-play .lay-left { grid-column: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 6px; padding: 10px 12px calc(12px + env(safe-area-inset-bottom, 0px)) calc(12px + env(safe-area-inset-left, 0px)); background-color: #0e1c33; background-image: radial-gradient(rgba(255,255,255,.07) 1px, transparent 1.5px); background-size: 7px 7px; border-right: 3px solid #F0B429; }
+        .fo-play .lay-left > * { margin-top: 0 !important; flex: 0 0 auto; } /* razmik dela gap; nič se ne razteza čez rob */
+        .fo-play .lay-left > .panel:last-of-type, .fo-play .lay-left .panel.market-panel { min-height: 0; } /* trg se sme stisniti */
+        /* desni oder — flex stolpec, BREZ scrolla; spodnji prostor za fixed .actions; rahla navy vinjeta */
+        .fo-play .lay-right { grid-column: 2; min-height: 0; overflow: hidden; display: flex; flex-direction: column; padding: 10px calc(16px + env(safe-area-inset-right, 0px)) calc(74px + env(safe-area-inset-bottom, 0px)) 16px; background: radial-gradient(ellipse at 50% 0%, rgba(21,39,68,.08), transparent 60%); }
+        .fo-play .lay-right > .panel:last-child { margin-top: auto; } /* roka potisnjena na dno odra, nad gumbe */
         /* akcijska vrstica ostane fixed, le zamaknjena na šiv stolpcev */
         .fo-play .actions { left: var(--lay-w); }
         .fo-play .act-row, .fo-play .actbar-prompt { max-width: 640px; }
         .fo-play .actions .abtn { max-width: 260px; }
-        /* manjši skriti kup, da trg v ožjem pultu zadiha */
-        .fo-play .lay-left .deckbtn { flex-basis: 96px; min-height: 180px; }
+        /* ===== fluidne velikosti — vse se stisne, da NIKOLI ni scrollanja ===== */
+        /* skriti kup se skalira z višino; trg-panel je edini flex-raztezni v pultu */
+        .fo-play .market-panel { flex: 1 1 auto; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+        .fo-play .market-panel .piles { min-height: 0; }
+        .fo-play .lay-left .deckbtn { flex-basis: clamp(88px, 15vw, 112px); min-height: clamp(96px, 22dvh, 200px); }
+        .fo-play .lay-left .fa-row { overflow: hidden; }
+        .fo-play .lay-left .fa-row .card { width: clamp(56px, 9vw, 96px); min-width: clamp(56px, 9vw, 96px); }
+        /* mini kartice (peterka/klop) — širina 5-čez-oder, višina iz dvh */
+        .fo-play .lay-right .mini, .fo-play .lay-right .slot-empty { width: var(--miniw); min-width: var(--miniw); }
+        .fo-play .lay-right .slot-empty { height: var(--minih); }
+        .fo-play .lay-right .roster-grid { gap: clamp(4px, .8vw, 8px); flex-wrap: nowrap; }
+        /* hand karte: širina iz --cardw (že fluid) — nič drugega */
+        /* AI + dnevnik ekspanzija = plavajoči popup, NE inline push (oder ostane fiksen) */
+        .fo-play .lay-left > .panel { position: relative; }
+        .fo-play .panel-pop { position: absolute; left: 6px; right: 6px; top: calc(100% - 2px); z-index: 18;
+          max-height: 62dvh; overflow-y: auto; overscroll-behavior: contain;
+          background: linear-gradient(180deg,#fffdf7,#faf5e8); border: 2px solid #152744; border-radius: 12px;
+          padding: 8px 10px; box-shadow: 0 10px 24px rgba(8,16,32,.5); }
         /* toast centriran nad odrom (translateX(-50%) iz baznega pravila ostane) */
         .fo-play .toast { left: calc(var(--lay-w) + (100vw - var(--lay-w)) / 2); }
         /* ===== oder brez škatel — karte plavajo na kartonu ===== */
@@ -2789,11 +2810,11 @@ export default function App() {
         .fo-play .act-hint { background: #152744; border-radius: 999px; padding: 5px 14px; }
         .fo-play .actbar-prompt { border-radius: 14px; box-shadow: 0 6px 0 #0c1830; }
       }
-      /* ===== KOMPAKTNI TELEFONSKI TIER: isti ležeči layout, pomanjšan za viewporte ≤520px višine ===== */
+      /* ===== "VSE PAŠE" TIER: velja za VSA ležeča okna nižja od namizja (≤760px višine) — telefon in tablica.
+         Velikosti so zvezno vezane na dvh, zato višje okno dobi večje karte, a vedno brez scrolla. ===== */
       /* Vsa pravila pod .fo-play; specifičnost ≥ izvirniku, blok stoji ZA baznim ležečim blokom. */
-      /* Enako kot zgoraj: brez transform/filter/perspective na wrapperjih (fixed .actions). */
-      @media (orientation: landscape) and (max-height: 520px) {
-        .fo-play { --lay-w: 250px; --cardw: 106px; }
+      @media (orientation: landscape) and (max-height: 760px) {
+        .fo-play { --lay-w: clamp(232px, 27vw, 300px); --cardw: clamp(96px, 15dvh, 150px); }
 
         /* stolpca — manjši paddingi + safe-area (gl. spec §4) */
         .fo-play .lay-left { padding: 8px 10px 16px calc(10px + env(safe-area-inset-left, 0px)); }
@@ -2870,10 +2891,106 @@ export default function App() {
         /* toast: ne sme viseti čez pult; modal: izkoristi dvh */
         .fo-play .toast { max-width: calc(100vw - var(--lay-w) - 24px); padding: 8px 12px; font-size: 13px; }
         .fo-play .modal { max-height: calc(100dvh - 32px); padding: 12px; } /* 32px = 2×16px padding .modal-bg */
+
+        /* ===== NIKOLI SCROLLA: karte v roki + mini so kompaktne (kot Balatro) — poln detajl na tap (inspect) ===== */
+        /* roka: skrij gostobesedne vrstice, pomanjšaj obraz → ~110px namesto ~190px; OVR/pozicija/plača/vpliv ostanejo */
+        .fo-play .hand .card { padding: 4px 5px; }
+        .fo-play .hand .card .card-club, .fo-play .hand .card .career, .fo-play .hand .card .pot, .fo-play .hand .card .pot-job, .fo-play .hand .card .vals .val-chip:last-child { display: none; }
+        .fo-play .hand .card .face { width: 30px; height: 30px; }
+        .fo-play .hand .card .card-name { min-height: 0; font-size: 11px; margin: 2px 0; }
+        .fo-play .hand .card .trait { font-size: 9.5px; }
+        .fo-play .hand .card .vals { font-size: 9.5px; }
+        .fo-play .hand .card .card-row.btm { margin-top: 2px; }
+        /* mini (peterka/klop): skrij "klop X tč", pomanjšaj → ~62px; ↑ v peterko ostane */
+        .fo-play .lay-right .mini { padding: 3px 5px; }
+        .fo-play .lay-right .mini .mini-pts { display: none; }
+        .fo-play .lay-right .mini .mini-face { width: 12px; height: 12px; }
+        .fo-play .lay-right .mini .mini-name { font-size: 10.5px; }
+        .fo-play .lay-right .mini .mini-sal { font-size: 9px; }
+        .fo-play .lay-right .mini .mini-promote { margin-top: 2px; padding-top: 2px; font-size: 9px; }
+        /* stisni ritem odra */
+        .fo-play .lay-right { padding-bottom: calc(58px + env(safe-area-inset-bottom, 0px)); }
+        .fo-play .lay-right > .panel { padding: 2px 2px; }
+        .fo-play .stage-top { margin-bottom: 1px; }
+        .fo-play .rolodex { margin: 1px 0 2px; }
+        .fo-play .five-sep { margin: 3px 2px 0; }
+        .fo-play .roster-grid { gap: 4px; }
+        .fo-play .hand { padding: 6px 6px 4px; }
+        /* še tanjši gumbi, da oder dobi zrak */
+        .fo-play .actions .abtn { padding: 7px 10px; font-size: 13px; }
+        .fo-play .actbar-prompt { padding: 7px 10px; font-size: 12px; }
+
+        /* ===== zadnji krogi: glava/semafor/roka morajo v pult brez scrolla ===== */
+        .fo-play .lay-left { gap: 4px; }
+        /* glava: iz ~97px (3 vrstice ovijanja) v ~2 tesni vrstici */
+        .fo-play .hdr { padding: 4px 9px; flex-wrap: wrap; gap: 2px 8px; }
+        .fo-play .hdr .sub { font-size: 10.5px; }
+        .fo-play .hdr .score-strip { font-size: 11px; gap: 7px; }
+        .fo-play .hdr .score-strip b { font-size: 12px; }
+        .fo-play .hdr .sklad-chip { font-size: 11px; padding: 1px 6px; }
+        /* semafor: iz 80 v ~56 */
+        .fo-play .sb { padding: 4px 8px; }
+        .fo-play .sb-num { font-size: 19px; }
+        .fo-play .sb-team { font-size: 9.5px; }
+        .fo-play .sb-season { font-size: 9px; }
+        .fo-play .sb-lbl { font-size: 8.5px; }
+        .fo-play .sb-note { display: none; }
+        /* plačna masa in AI/dnevnik/pravila tesneje */
+        .fo-play .capm-side { padding: 4px 9px 5px; }
+        .fo-play .ai-last { display: none; } /* sekundarna AI vrstica požre višino; glavna vrstica ostane */
+        .fo-play .lay-left .linkbtn { margin-top: 2px; font-size: 12px; }
+        /* roka: še krajše (skrij projekcijo v peterki), obraz 26 → ~112px */
+        .fo-play .hand .card .vals { display: none; }
+        .fo-play .hand .card .face { width: 26px; height: 26px; }
+        /* mini še malo nižje */
+        .fo-play .lay-right .mini { padding: 2px 4px; line-height: 1.15; }
+        .fo-play .lay-right .mini .mini-face { width: 11px; height: 11px; }
+        .fo-play .lay-right .mini .mini-top b { font-size: 12.5px; }
+        .fo-play .lay-right .mini .mini-name { margin: 1px 0; }
+        /* nižja prazna mesta + tanjša rezerva za (tanke) gumbe → oder se poravna v 375px */
+        .fo-play { --minih: clamp(44px, 12dvh, 96px); }
+        .fo-play .lay-right { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
+        .fo-play .hand .card { padding: 3px 5px; }
+        .fo-play .hand .card .face { width: 24px; height: 24px; }
+        .fo-play .hand { padding: 5px 6px 2px; }
+
+        /* ===== MODALI SE PRILAGODIJO (nikoli scrolla): izbira coacha/filozofije v 2 stolpca, kompaktno ===== */
+        .fo-play .modal { max-width: min(700px, 95vw); max-height: calc(100dvh - 14px); padding: 10px 12px; }
+        .fo-play .modal h3 { font-size: 15.5px; margin-bottom: 3px; }
+        .fo-play .modal > p, .fo-play .modal .evt-text { font-size: 11px; line-height: 1.3; margin-bottom: 6px; }
+        .fo-play .modal .coachbtn { display: inline-block; vertical-align: top; width: calc(50% - 6px); margin: 0 3px 6px; padding: 6px 9px; }
+        .fo-play .modal .coachbtn b { font-size: 12.5px; }
+        .fo-play .modal .coachbtn .ct { font-size: 9.5px; }
+        .fo-play .modal .coachbtn div { font-size: 9.5px; line-height: 1.25; margin-top: 2px; }
+        /* medsezonska drama / podpis: izbire tudi v 2 stolpca */
+        .fo-play .modal .signopt { display: inline-block; vertical-align: top; width: calc(50% - 6px); margin: 0 3px 6px; }
+        .fo-play .modal .signopt-main { font-size: 12px; }
+        /* dražba/rehab/klic: manjša kartica + tesnejši seznam, da modal ostane znotraj zaslona */
+        .fo-play .modal .auc-card { transform: scale(.82); transform-origin: top center; margin: -4px 0 -14px; }
+        .fo-play .modal ul { font-size: 11px; margin: 4px 0; padding-left: 16px; }
+        .fo-play .modal ul li { margin: 2px 0; }
+        .fo-play .modal .stepper { padding: 5px 8px; font-size: 11px; }
+        .fo-play .modal .abtn { padding: 8px 10px; font-size: 12.5px; }
+
+        /* ===== ZVEZNA VIŠINSKA SKALA: na višjih ležečih zaslonih (tablica) karte zrastejo in napolnijo prostor,
+           na telefonu se skrčijo — vedno brez scrolla (te vrstice so ZADNJE, zato povozijo fiksne px zgoraj) ===== */
+        .fo-play { --minih: clamp(42px, 11.5dvh, 104px); }
+        .fo-play .hand .card .face { width: clamp(23px, 5.4dvh, 44px); height: clamp(23px, 5.4dvh, 44px); }
+        .fo-play .hand .card .card-name { font-size: clamp(11px, 2.5dvh, 15px); min-height: 0; }
+        .fo-play .hand .card .ovr { font-size: clamp(13px, 3dvh, 20px); }
+        .fo-play .hand .card .trait { font-size: clamp(9.5px, 2dvh, 12px); }
+        .fo-play .hand .card .sal { font-size: clamp(10px, 2.2dvh, 13px); }
+        .fo-play .hand .card .pm { font-size: clamp(9px, 2dvh, 12px); }
+        .fo-play .lay-right .mini .mini-face { width: clamp(11px, 2.5dvh, 16px); height: clamp(11px, 2.5dvh, 16px); }
+        .fo-play .lay-right .mini .mini-name { font-size: clamp(10px, 2.3dvh, 13.5px); }
+        .fo-play .lay-right .mini .mini-top b { font-size: clamp(12px, 2.8dvh, 17px); }
+        .fo-play .lay-right .mini .mini-sal { font-size: clamp(9px, 1.9dvh, 12px); }
+        .fo-play .lay-right .mini .mini-top { font-size: clamp(10px, 2.1dvh, 13px); }
       }
       /* ===== POKONČNO: igralni zaslon skrit, celozaslonski poziv k obračanju (samo CSS) ===== */
       @media (orientation: portrait) {
-        .fo-play { height: 100vh; height: 100dvh; overflow: hidden; }
+        html, body { overscroll-behavior: none; } /* tudi pokončno brez pull-to-refresh */
+        .fo-play { height: 100vh; height: 100dvh; min-height: 0; overflow: hidden; }
         .fo-play .wrap, .fo-play .actions, .fo-play .toast { display: none; }
         .fo-play .rotate-note { display: flex; position: fixed; inset: 0; z-index: 999;
           flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center;
@@ -3292,7 +3409,7 @@ export default function App() {
             </div>
             <span className="chev">{aiOpen ? tr("▲ skrij", "▲ hide") : tr("▼ podrobno", "▼ details")}</span>
           </button>
-          {aiOpen && <>
+          {aiOpen && <div className="panel-pop">
             <div className="lbl" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
               <span>{tr(`roka ${g.a.hand.length} kart`, `hand ${g.a.hand.length} cards`)}</span>
               <Picks p={g.a.picks} />
@@ -3318,11 +3435,11 @@ export default function App() {
                 </div>
               </>;
             })() : <div className="roster-grid" style={{ marginTop: 6 }}><span style={{ fontSize: 13, color: "#8a7c63" }}>{tr("Še brez podpisov.", "No signings yet.")}</span></div>}
-          </>}
+          </div>}
         </div>
 
         {/* KUPI */}
-        <div ref={marketRef} className={"panel" + (drawPhase ? " draw-hi" : "") + (marketFlash ? " market-flash" : "")}>
+        <div ref={marketRef} className={"panel market-panel" + (drawPhase ? " draw-hi" : "") + (marketFlash ? " market-flash" : "")}>
           <div className="lbl" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}><span>{tr("Trg", "Market")} <span className="lbl-sub">{tr("— vzemi 1 karto iz kupa ali AI-jevega odpada", "— take 1 card from the deck or AI's waived pile")}</span></span><button className="infob" onClick={() => setHelp("kupi")} aria-label={tr("Pomoč: trg", "Help: market")}>?</button></div>
           <div className="piles">
             <button className="deckbtn" disabled={!drawPhase} onClick={drawDeck}>
@@ -3362,7 +3479,7 @@ export default function App() {
             </div>
             <span className="chev">{logOpen ? tr("▲ skrij", "▲ hide") : tr("▼ vse", "▼ all")}</span>
           </button>
-          {logOpen && <div className="log" style={{ marginTop: 6 }}>{[...g.log].reverse().map((l, i) => <div key={i}>{l}</div>)}</div>}
+          {logOpen && <div className="panel-pop"><div className="log" style={{ marginTop: 6 }}>{[...g.log].reverse().map((l, i) => <div key={i}>{l}</div>)}</div></div>}
         </div>
         <div style={{ textAlign: "center" }}><button className="linkbtn" onClick={() => setShowRules(true)}>{tr("Pravila", "Rules")}</button></div>
         </div>{/* /lay-left */}
