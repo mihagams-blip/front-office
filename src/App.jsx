@@ -2788,6 +2788,10 @@ export default function App() {
           max-height: calc(var(--uh) * 62); overflow-y: auto; overscroll-behavior: contain;
           background: linear-gradient(180deg,#fffdf7,#faf5e8); border: 2px solid #152744; border-radius: 12px;
           padding: 8px 10px; box-shadow: 0 10px 24px rgba(8,16,32,.5); }
+        /* AI "podrobno" preveri nasprotnika — plavajoč pregled ČEZ oder (desno), ne potisk pulta navzdol.
+           position:fixed (v zavrtenem načinu je containing block .fo, sicer viewport) — center desne polovice. */
+        .fo-play .ai-pop { position: fixed; top: 50%; right: auto; left: calc(var(--lay-w) + (var(--uw) * 100 - var(--lay-w)) / 2);
+          transform: translate(-50%, -50%); width: min(70%, 560px); max-height: 86dvh; overflow-y: auto; z-index: 40; }
         /* toast centriran nad odrom (translateX(-50%) iz baznega pravila ostane) */
         .fo-play .toast { left: calc(var(--lay-w) + (var(--uw) * 100 - var(--lay-w)) / 2); }
         /* ===== oder brez škatel — karte plavajo na kartonu ===== */
@@ -2845,6 +2849,10 @@ export default function App() {
         .fo-play .deckbtn-count { font-size: 10px; padding: 1px 8px; }
         .fo-play .deckbtn small { display: none; }
         .fo-play .fa-row { padding: 6px 2px 2px; }
+        /* tržne karte v ozkem pultu: skrij gostobesedne vrstice, da se karta ne odreže navpično (OVR/pozicija/plača/popust ostanejo) */
+        .fo-play .lay-left .fa-row .card .card-club, .fo-play .lay-left .fa-row .card .career, .fo-play .lay-left .fa-row .card .pot, .fo-play .lay-left .fa-row .card .pot-job, .fo-play .lay-left .fa-row .card .trait, .fo-play .lay-left .fa-row .card .vals { display: none; }
+        .fo-play .lay-left .fa-row .card .face { width: 28px; height: 28px; }
+        .fo-play .lay-left .fa-row .card .card-name { min-height: 0; font-size: 11px; margin: 2px 0; }
 
         /* mini kartice (peterka/klop) — poenoti SE (bazne velikosti) in 14 Pro/Max (700px blok) */
         .fo-play .mini { width: 92px; font-size: 11px; padding: 4px 6px; }
@@ -2998,10 +3006,25 @@ export default function App() {
          transform naredi .fo containing block za fixed potomce (.actions, modali, toast) → zavrtijo se skupaj. */
       @media (orientation: portrait) and (max-width: 1024px) {
         html, body { margin: 0; overflow: hidden; overscroll-behavior: none; }
-        /* .fo = ležeče platno: širina = fizična višina, višina = fizična širina; zavrti okrog levega zgornjega kota */
+        /* .fo = ležeče platno: širina = fizična višina, višina = fizična širina; zavrti okrog levega zgornjega kota.
+           VARNI ROBOVI so tu ZAMENJANI, ker se env() ne zavrti z vsebino: po rotaciji je fizični VRH (zareza/Dynamic Island)
+           na vizualni LEVI, fizično DNO (home indikator) na vizualni DESNI. box-sizing, da padding ne poveča platna. */
         .fo { position: fixed; top: 0; left: 100vw; left: 100dvw; width: 100vh; width: 100dvh; height: 100vw; height: 100dvw;
-          min-height: 0; transform: rotate(90deg); transform-origin: left top; overflow-y: auto; overflow-x: hidden; }
+          min-height: 0; box-sizing: border-box;
+          padding: env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px) env(safe-area-inset-top, 0px);
+          transform: rotate(90deg); transform-origin: left top; overflow-y: auto; overflow-x: hidden; }
         .fo-play { --uw: 1dvh; --uh: 1dvw; overflow: hidden; } /* zamenjani osi fluidnih enot; igralni zaslon brez scrolla */
+        /* varne robove ureja .fo zgoraj — stolpci NE smejo dodajati še svojih env() (napačna os po rotaciji) */
+        .fo-play .lay-left { padding: 8px 10px 16px 10px; }
+        .fo-play .lay-right { padding: 8px 12px 64px 12px; } /* večja spodnja rezerva, da gumbi ne prekrijejo kart v roki */
+        .fo-play .actions { padding: 0 10px 8px 10px; }
+        /* trg v ozkem levem pultu: karte ožje + vodoravni scroll, da niso navpično odrezane ob robu pulta */
+        .fo-play .lay-left .market-zone { min-width: 0; overflow: hidden; }
+        .fo-play .lay-left .fa-row { overflow-x: auto; overscroll-behavior-x: contain; }
+        .fo-play .lay-left .fa-row .card { width: 80px; min-width: 80px; }
+        /* AI "podrobno" = plavajoč pregled ČEZ desno igralno površino (ne potisk navzdol — tam ni prostora) */
+        .fo-play .ai-pop { position: fixed; top: 50%; right: auto; left: calc(var(--lay-w) + (100% - var(--lay-w)) / 2);
+          transform: translate(-50%, -50%); width: min(72%, 540px); max-height: 88%; overflow-y: auto; z-index: 40; }
       }
       /* ===== POKONČNO >1024px (ozko namizno okno): poziv k obračanju (samo CSS) ===== */
       @media (orientation: portrait) and (min-width: 1025px) {
@@ -3420,7 +3443,7 @@ export default function App() {
             </div>
             <span className="chev">{aiOpen ? tr("▲ skrij", "▲ hide") : tr("▼ podrobno", "▼ details")}</span>
           </button>
-          {aiOpen && <div className="panel-pop">
+          {aiOpen && <div className="panel-pop ai-pop">
             <div className="lbl" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
               <span>{tr(`roka ${g.a.hand.length} kart`, `hand ${g.a.hand.length} cards`)}</span>
               <Picks p={g.a.picks} />
