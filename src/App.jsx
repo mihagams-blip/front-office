@@ -1069,7 +1069,7 @@ function PlayerCard({ c, onClick, selected, mini, starter, dim, ribbon, injured,
   if (mini) {
     return (
       <button className={"mini" + rare + (starter ? " starter" : "") + (selected ? " msel" : "") + (injured ? " inj" : "")} style={{ borderTopColor: injured ? "#C0392B" : POS_COLOR[c.pos] }} onClick={onClick}>
-        <div className="mini-top"><PosBadge p={c.pos} sm /><span>{injured ? <Ico k="inj" s={14} /> : c.rookie ? <Ico k={c.tier} s={14} /> : <Ico k={c.tr} s={14} />}</span><b>{c.ovr}</b></div>
+        <div className="mini-top"><PosBadge p={c.pos} sm /><span>{injured ? <Ico k="inj" s={14} /> : c.rookie ? <Ico k={c.tier} s={14} /> : <Ico k={c.tr} s={14} />}</span><b>{c.ovr}</b><span className="mini-split"><b className={starter ? "on" : ""}>{spts(c)}</b>/<b className={!starter && !injured ? "on" : ""}>{Math.floor(c.ovr / 2)}</b></span></div>
         <div className="mini-name">{injured ? "🩹 " : starter ? "★ " : ""}{c.unhappy && <Ico k="sulk" s={13} style={{ verticalAlign: "-2px", marginRight: 1 }} />}<Face c={c} cls="mini-face" />{surname(c.n)}</div>
         <div className="mini-sal"><span style={{ color: careerPhase(c.age).col, fontWeight: 700 }}>{careerPhase(c.age).ico} {c.age} {tr("let", "yrs")}</span> · {c.deal ? "🔖 " : ""}{c.sal} M${c.contract != null && <> · <Ico k="contract" s={11} style={{ verticalAlign: "-1px" }} />{c.contract}</>}</div>
         <div className="mini-pts">{injured ? tr("poškodovan", "injured") : starter ? tr(`★ ${spts(c)} tč v peterki`, `★ ${spts(c)} pts starting`) : tr(`klop ${Math.floor(c.ovr / 2)} tč`, `bench ${Math.floor(c.ovr / 2)} pts`)}</div>
@@ -1081,12 +1081,14 @@ function PlayerCard({ c, onClick, selected, mini, starter, dim, ribbon, injured,
   return (
     <button className={"card" + rare + (selected ? " sel" : "") + (dim ? " dim" : "")} onClick={onClick} style={{ borderTopColor: POS_COLOR[c.pos] }}>
       {ribbon && <div className="ribbon">{ribbon}</div>}
-      <div className="card-row"><PosBadge p={c.pos} /><span className="ovr">{c.ovr >= AUCTION_OVR ? <Gavel s={16} /> : null}{c.ovr}</span></div>
+      <div className="card-row"><PosBadge p={c.pos} /><span className="ovr">{c.ovr >= AUCTION_OVR ? <Gavel s={16} /> : null}{c.ovr}</span><span className="pts-split"><b>{spts(c)}</b>/{Math.floor(c.ovr / 2)}</span></div>
       <Face c={c} cls="face" />
       <div className="card-name">{c.unhappy && <><Ico k="sulk" s={14} /> </>}{c.n}</div>
       <div className="card-club">{c.club} · {c.age} {tr("let", "yrs")}{c.rookie ? " · ROOKIE" : ""}{c.contract != null && <> · <Ico k="contract" s={12} style={{ verticalAlign: "-1px" }} />{c.contract} {LANG === "en" ? (c.contract === 1 ? "season" : "seas.") : (c.contract === 1 ? "sezona" : "sez.")}</>}</div>
       <div className="career" style={{ color: careerPhase(c.age).col }}>{careerPhase(c.age).ico} {careerPhase(c.age).label}</div>
       <div className="trait"><Ico k={c.tr} s={13} /> {TRAITS[c.tr].n}</div>
+      {/* ODER (telefon): samo ikoni vloge + faze kariere v eni vrstici; besede (em) se pokažejo ob izbiri karte */}
+      <div className="icon-row"><span className="ir-t"><Ico k={c.tr} s={13} /><em> {TRAITS[c.tr].n}</em></span><span className="ir-c" style={{ color: careerPhase(c.age).col }}>{careerPhase(c.age).ico}<em> {careerPhase(c.age).label}</em></span></div>
       {c.rookie
         ? <><div className="pot" style={{ color: ROOK_TIER[c.tier].col }}><Ico k={c.tier} s={13} /> {ROOK_TIER[c.tier].n} · {tr("potencial", "potential")} {c.potLow}–{c.potHigh}</div><div className="pot-job">{ROOK_TIER[c.tier].job}</div>{c.hook && HOOKS[c.hook] && <div className="pot-job" style={{ color: "#7a4fd0" }}>⭑ {HOOKS[c.hook].n}: {HOOKS[c.hook].d}</div>}</>
         : <div className="vals"><span className="val-chip">{tr("v peterki", "starting")} <b>{spts(c)}</b></span><span className="val-chip">{tr("klop", "bench")} {Math.floor(c.ovr / 2)}</span></div>}
@@ -2442,6 +2444,8 @@ export default function App() {
       .career { font-size:10.5px; font-weight:800; letter-spacing:.4px; margin-top:2px; }
       .vals { font-size:11.5px; color:#215c26; background:#e7f3e7; border-radius:5px; padding:1px 5px; margin-top:3px; font-weight:700; display:flex; flex-wrap:wrap; column-gap:9px; }
       .val-chip { white-space:nowrap; }
+      /* nova gradnika (94/42 vrh, ikone vlog, plavajoč razširjen pogled, modra vloga v rosterju) — privzeto skriti; vklopi jih SAMO mobilni oder */
+      .pts-split, .icon-row, .mini-split, .hand-detail { display:none; }
       .sal { font-weight:700; color:#8a6d1a; font-size:13px; }
       .oldsal { text-decoration:line-through; color:#b3a37e; font-weight:600; font-size:11px; }
       .pot { font-size:11px; font-weight:700; margin-top:2px; }
@@ -3161,6 +3165,48 @@ export default function App() {
         .fo-play .hand .card.sel { translate: 0 -10px; z-index: 30; }
         /* "Vlekel si" modal: brez naslova in razlag — samo kartica + gumb */
         .fo-play .reveal-modal h3, .fo-play .reveal-modal .flip-info > p, .fo-play .reveal-modal .flip-info > ul, .fo-play .reveal-modal .flip-info .unlocks, .fo-play .reveal-modal .flip-info .addbox { display: none; }
+
+        /* ===== ROKA (telefon): portret karte — samo IKONE vlog, 94/42 namesto OVR, velik portret, BREZ prekrivanja ===== */
+        .fo-play .hand { gap: 4px; justify-content: flex-start; overflow-x: auto; overflow-y: visible; overscroll-behavior-x: contain; padding: 3px 8px 2px; }
+        .fo-play .hand .card { rotate: 0deg; margin-left: 0; width: clamp(76px, calc(var(--uh) * 21), 104px); min-width: clamp(76px, calc(var(--uh) * 21), 104px); padding: 3px 5px 4px; display: flex; flex-direction: column; }
+        .fo-play .hand .card:not(:first-child), .fo-play .hand .card:nth-child(n) { margin-left: 0; rotate: 0deg; } /* povozi pahljačni negativni rob in nagibe — nič se ne prekriva */
+        /* vrh: pozicija levo, 94/42 (v postavi/na klopi) desno namesto OVR */
+        .fo-play .hand .card .ovr { display: none; }
+        .fo-play .hand .card .pts-split { display: inline-flex; align-items: baseline; margin-left: auto; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 12px; color: #6a5c43; letter-spacing: .3px; }
+        .fo-play .hand .card .pts-split b { font-family: 'Archivo Black', 'Arial Black', sans-serif; font-size: 14px; color: #152744; margin-right: 1px; }
+        /* velik portret (boljše razmerje — ne kvadrat) */
+        .fo-play .hand .card .face { display: block; width: 100%; height: clamp(32px, calc(var(--uh) * 9.5), 52px); border-radius: 7px; object-fit: cover; object-position: center 14%; margin: 2px 0 0; }
+        .fo-play .hand .card .card-name { font-size: 10.5px; min-height: 0; margin: 2px 0 0; line-height: 1.05; }
+        /* privzeto samo ikoni vlog v eni vrstici; besedilne različice skrite */
+        .fo-play .hand .card .trait, .fo-play .hand .card .career, .fo-play .hand .card .vals, .fo-play .hand .card .card-club, .fo-play .hand .card .pot, .fo-play .hand .card .pot-job { display: none; }
+        .fo-play .hand .card .icon-row { display: flex; align-items: center; gap: 8px; margin: 1px 0 0; font-size: 9px; font-weight: 700; }
+        .fo-play .hand .card .icon-row em { display: none; font-style: normal; }
+        .fo-play .hand .card .card-row.btm { margin-top: 1px; }
+        .fo-play .hand .card .sal { font-size: 10px; }
+        .fo-play .hand .card .pm { font-size: 9.5px; }
+        /* IZBRANA karta: dvig + poudarek; ikonam se pridružijo besede (kartica pove več) */
+        .fo-play .hand .card.sel { translate: 0 -8px; z-index: 30; }
+        .fo-play .hand .card.sel .icon-row { flex-direction: column; align-items: flex-start; gap: 1px; }
+        .fo-play .hand .card.sel .icon-row em { display: inline; }
+        .fo-play .hand .card.sel .card-club { display: block; font-size: 8.5px; }
+        /* plavajoč razširjen pogled izbrane karte: vse informacije + posebnosti pod kartico (fixed → ne premika layouta, brez scrolla) */
+        .fo-play .hand-detail { display: block; position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(66px + env(safe-area-inset-bottom, 0px)); z-index: 34; width: min(430px, calc(100% - 24px)); max-height: 46%; overflow-y: auto; background: #fffdf7; border: 2px solid #152744; border-radius: 14px; padding: 8px 12px; box-shadow: 0 10px 26px rgba(8,16,32,.4); font-family: 'Barlow Condensed', sans-serif; cursor: pointer; }
+        .fo-play .hand-detail .hd-name { font-family: 'Archivo Black', 'Arial Black', sans-serif; font-size: 15px; color: #152744; line-height: 1.1; }
+        .fo-play .hand-detail .hd-icons { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: 3px 0; font-weight: 700; font-size: 12px; }
+        .fo-play .hand-detail .hd-icons span { display: inline-flex; align-items: center; gap: 3px; }
+        .fo-play .hand-detail .hd-line { font-size: 11.5px; color: #6a5c43; }
+        .fo-play .hand-detail .hd-line s { color: #b3a37e; }
+        .fo-play .hand-detail .hd-pts { font-size: 12px; margin-top: 2px; }
+        .fo-play .hand-detail .hd-pts b { color: #1f5fd0; font-family: 'Archivo Black', 'Arial Black', sans-serif; }
+        .fo-play .hand-detail .hd-spec { margin-top: 4px; border-top: 1px solid #e6dcc4; padding-top: 4px; display: flex; flex-direction: column; gap: 2px; }
+        .fo-play .hand-detail .hd-spec .sp { font-size: 11px; line-height: 1.25; color: #4a4232; }
+        .fo-play .hand-detail .hd-spec .sp.good { color: #216c2b; }
+        .fo-play .hand-detail .hd-spec .sp.bad { color: #b23b2e; }
+        /* mini roster: 94/42 z MODRO aktivno vlogo (v peterki višja, na klopi nižja) namesto OVR */
+        .fo-play .lay-right .mini .mini-top > b { display: none; }
+        .fo-play .lay-right .mini .mini-split { display: inline-flex; align-items: baseline; gap: 1px; margin-left: auto; font-family: 'Barlow Condensed', sans-serif; font-size: 12px; }
+        .fo-play .lay-right .mini .mini-split b { color: #8a7c63; font-weight: 700; }
+        .fo-play .lay-right .mini .mini-split b.on { color: #1f5fd0; font-family: 'Archivo Black', 'Arial Black', sans-serif; }
       }
       /* ===== POKONČNO ≤1024px (telefon/tablica): PRISILNA LEŽEČA — cela igra zavrtena za 90°. =====
          Deluje tudi ob vklopljenem zaklepu vrtenja (iOS/Android): uporabnik telefon samo fizično obrne.
@@ -3254,7 +3300,7 @@ export default function App() {
             <button className="linkbtn" onClick={() => { try { localStorage.setItem("fo-lang", LANG === "en" ? "sl" : "en"); } catch {} window.location.reload(); }}>{LANG === "en" ? "🇸🇮 Slovensko" : "🇬🇧 English"}</button>
           </div>
           {/* diskretna oznaka verzije — da v posnetku vidim, katera je objavljena */}
-          <div style={{ marginTop: 6, fontSize: 10, opacity: 0.4, letterSpacing: 0.5 }}>v0.8.8</div>
+          <div style={{ marginTop: 6, fontSize: 10, opacity: 0.4, letterSpacing: 0.5 }}>v0.8.9</div>
         </div>
         {showRules && <Rules onClose={() => setShowRules(false)} />}
       </div>
@@ -3808,6 +3854,29 @@ export default function App() {
           {selCard && <>
             <UnlockPreview card={selCard} sCards={starterCards.filter((c) => c.pos !== selCard.pos || c.id === g.h.starters[selCard.pos])} />
             <button className="linkbtn" style={{ marginTop: 6 }} onClick={() => setInspect({ card: selCard, side: "hand" })}>{tr(`ℹ️ Podrobnosti in točke (${surname(selCard.n)})`, `ℹ️ Details and points (${surname(selCard.n)})`)}</button>
+            {/* TELEFON: plavajoč razširjen pogled izbrane karte — vse informacije + posebnosti (na namizju skrit; tam vlogo opravita UnlockPreview + link zgoraj) */}
+            {(() => {
+              const c = selCard, cp = careerPhase(c.age);
+              const syn = previewUnlocks(c, starterCards.filter((x) => x.pos !== c.pos || x.id === g.h.starters[c.pos]));
+              return (
+                <div className="hand-detail" onClick={() => setSel(null)}>
+                  <div className="hd-name">{c.unhappy && <><Ico k="sulk" s={15} /> </>}{c.n}</div>
+                  <div className="hd-icons">
+                    <span><PosBadge p={c.pos} sm /> {c.pos}</span>
+                    <span><Ico k={c.tr} s={14} /> {TRAITS[c.tr].n}</span>
+                    <span style={{ color: cp.col }}>{cp.ico} {cp.label}</span>
+                  </div>
+                  <div className="hd-line">{c.club} · {c.age} {tr("let", "yrs")} · {c.disc ? <>{c.sal} M$ <s>{c.origSal}</s></> : `${c.sal} M$`} · {tr("vpliv", "impact")} {c.pm >= 0 ? "+" : ""}{c.pm}{c.contract != null ? ` · ${c.contract} ${tr("sez.", "seas.")}` : ""}</div>
+                  <div className="hd-pts">{tr("v peterki", "starting")} <b>{spts(c)}</b> {tr("· na klopi", "· bench")} <b>{Math.floor(c.ovr / 2)}</b> {tr("tč", "pts")}</div>
+                  <div className="hd-spec">
+                    <span className="sp">{cp.ico} {agingOutlook(c.age)}</span>
+                    {c.rookie && <span className="sp">{ROOK_TIER[c.tier].ico} {ROOK_TIER[c.tier].n} · {tr("potencial", "potential")} {c.potLow}–{c.potHigh} — {ROOK_TIER[c.tier].job}.</span>}
+                    {c.rookie && c.hook && HOOKS[c.hook] && <span className="sp good">⭑ {HOOKS[c.hook].n}: {HOOKS[c.hook].d}</span>}
+                    {syn.map((u, i) => <span key={i} className={"sp " + (u.good ? "good" : "bad")}>{u.good ? "✨" : "⚠️"} {u.txt}</span>)}
+                  </div>
+                </div>
+              );
+            })()}
           </>}
         </div>
 
