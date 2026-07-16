@@ -1519,6 +1519,7 @@ export default function App() {
   const [discOpen, setDiscOpen] = useState(false); // tvoj odpad — privzeto skrčen (večinoma te ne zanima)
   const [mktOpen, setMktOpen] = useState(false); // MOBILNI pregled trga (plavajoč čez oder); desktop ima poln trg v pultu
   const [mktTab, setMktTab] = useState("mkt"); // zavihek v pregledu: "mkt" = AI odpad (trg) | "disc" = tvoj odpad
+  const [gearOpen, setGearOpen] = useState(false); // ⚙️ mobilni meni nastavitev (glasba/zvok/pravila/pomoč)
   const [help, setHelp] = useState(null); // ⓘ pomoč za panel: 'kupi' | 'roster' | 'roka'
   const [marketFlash, setMarketFlash] = useState(false); // 🟠 utrip Trga po kliku na draw-prompt
   const marketFlashTimer = useRef(null);
@@ -2494,7 +2495,7 @@ export default function App() {
       .deckbtn-count { font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:12px; background:#F0B429; color:#152744; border-radius:999px; padding:1px 10px; box-shadow:0 1px 2px rgba(0,0,0,.4); }
       .deckbtn small { font-family:'Barlow Condensed',sans-serif; font-weight:500; font-size:11px; opacity:.75; text-align:center; }
       /* mobilni elementi — privzeto SKRITI (desktop kaže pult + poln .market-full); prižgejo se v kompaktnem tieru */
-      .deck-corner, .mkt-corner, .ai-corner, .mob-stats, .rules-mob { display:none; }
+      .deck-corner, .mkt-corner, .ai-corner, .mob-stats, .rules-mob, .gear-wrap, .calls-corner { display:none; }
       .mkt-tabs { display:flex; gap:6px; margin:6px 0 2px; }
       .mkt-tabs button { font-family:inherit; font-size:12px; font-weight:700; padding:4px 11px; border-radius:8px; border:1px solid #e0d5bc; background:#f2e9d4; color:#152744; cursor:pointer; }
       .mkt-tabs button.active { background:#152744; color:#F5EBDC; border-color:#152744; }
@@ -3089,7 +3090,16 @@ export default function App() {
         .fo-play .mob-stats .ms-pos { color: #8fd694; }
         .fo-play .mob-stats .ms-neg { color: #ff9a8d; }
         .fo-play .mob-stats .ms-item { font-weight: 700; font-size: 11px; color: #4a3f2c; white-space: nowrap; }
-        .fo-play .rules-mob { display: inline-flex; }
+        /* mini bar plačne mase v statusni letvi (namesto pulta) — črtica označuje limit */
+        .fo-play .ms-capbar { position: relative; display: inline-block; width: 54px; height: 7px; border-radius: 4px; background: #e2d5b8; overflow: hidden; margin-right: 4px; vertical-align: -1px; }
+        .fo-play .ms-capfill { position: absolute; top: 0; bottom: 0; left: 0; border-radius: 4px; }
+        .fo-play .ms-capmark { position: absolute; top: 0; bottom: 0; width: 2px; background: #152744; }
+        /* ⚙️ nastavitve: posamični gumbi (glasba/zvok/pravila/pomoč) skriti, pokaže se kolešček s pop-om */
+        .fo-play .stage-tools > .iconbtn, .fo-play .stage-tools > .infob { display: none; }
+        .fo-play .gear-wrap { display: inline-flex; position: relative; }
+        .fo-play .gear-wrap .gear-btn { display: inline-flex; width: 28px; height: 28px; }
+        .fo-play .gear-pop { position: absolute; top: calc(100% + 4px); right: 0; display: flex; gap: 4px; background: #fffdf7; border: 1.5px solid #152744; border-radius: 10px; padding: 4px; z-index: 30; box-shadow: 0 5px 14px rgba(8,16,32,.35); }
+        .fo-play .gear-pop .iconbtn { display: inline-flex; width: 28px; height: 28px; }
         /* vogalne ikone (skupen videz): kup desno, trg + AI levo */
         .fo-play .lay-right { position: relative; }
         .fo-play .deck-corner, .fo-play .mkt-corner, .fo-play .ai-corner { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; position: absolute; right: 3px; bottom: calc(54px + env(safe-area-inset-bottom, 0px)); z-index: 12; width: 46px; padding: 5px 3px; border-radius: 10px; border: 2px solid #33507e; background: #14294a; color: #F5EBDC; cursor: pointer; }
@@ -3119,6 +3129,19 @@ export default function App() {
         .fo-play .inspect-modal .verbose { display: none; }
         /* ob izbiri karte v roki: unlock predogled + link pod roko skrita (isto pove modal na tap) — sicer oder preraste 375px */
         .fo-play .lay-right .panel .unlocks, .fo-play .lay-right .panel > .linkbtn { display: none; }
+        /* peterka + klop centrirani na odru (ne levo) */
+        .fo-play .roster-grid { justify-content: center; }
+        /* rolodex vrstica skrita — klici so gumbi v .calls-corner nad kupom (brez napisa) */
+        .fo-play .rolodex { display: none; }
+        .fo-play .calls-corner { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; position: absolute; right: 3px; bottom: calc(138px + env(safe-area-inset-bottom, 0px)); z-index: 12; }
+        /* IZBRANA karta v roki se poveča in razkrije skrite podatke (Balatro dvig) — zato ni potrebe po dodatnih razlagah */
+        .fo-play .hand .card.sel { width: calc(var(--cardw) * 1.35); min-width: calc(var(--cardw) * 1.35); translate: 0 -20px; z-index: 30; }
+        .fo-play .hand .card.sel .face { width: 36px; height: 36px; }
+        .fo-play .hand .card.sel .trait { display: block; font-size: 10px; }
+        .fo-play .hand .card.sel .vals { display: flex; font-size: 9.5px; }
+        .fo-play .hand .card.sel .card-club { display: block; font-size: 9.5px; }
+        /* "Vlekel si" modal: brez naslova in razlag — samo kartica + gumb */
+        .fo-play .reveal-modal h3, .fo-play .reveal-modal .flip-info > p, .fo-play .reveal-modal .flip-info > ul, .fo-play .reveal-modal .flip-info .unlocks, .fo-play .reveal-modal .flip-info .addbox { display: none; }
       }
       /* ===== POKONČNO ≤1024px (telefon/tablica): PRISILNA LEŽEČA — cela igra zavrtena za 90°. =====
          Deluje tudi ob vklopljenem zaklepu vrtenja (iOS/Android): uporabnik telefon samo fizično obrne.
@@ -3212,7 +3235,7 @@ export default function App() {
             <button className="linkbtn" onClick={() => { try { localStorage.setItem("fo-lang", LANG === "en" ? "sl" : "en"); } catch {} window.location.reload(); }}>{LANG === "en" ? "🇸🇮 Slovensko" : "🇬🇧 English"}</button>
           </div>
           {/* diskretna oznaka verzije — da v posnetku vidim, katera je objavljena */}
-          <div style={{ marginTop: 6, fontSize: 10, opacity: 0.4, letterSpacing: 0.5 }}>v0.8.5</div>
+          <div style={{ marginTop: 6, fontSize: 10, opacity: 0.4, letterSpacing: 0.5 }}>v0.8.6</div>
         </div>
         {showRules && <Rules onClose={() => setShowRules(false)} />}
       </div>
@@ -3519,6 +3542,11 @@ export default function App() {
   const bonusChips = buildBonusChips(proj, g.h.coach); // ena resnica za BonusRow + kaskado
   // 🎰 progresivni seštevek med kaskado (sicer živi proj.total) + indeks aktivnega chipa v bonusChips
   const cascH = casc ? casc.base + casc.steps.slice(0, casc.i + 1).reduce((s, st) => s + st.pts, 0) : proj.total;
+  // ☎️ klici kot gumbi — renderirani 2×: v .rolodex (namizje) in v .calls-corner nad kupom (telefon)
+  const callChips = (g.h.calls || []).map((id, i) => {
+    const c = CALLS[id]; const react = c.kind === "reaction"; const elig = !react && callEligible(id) && (g.callTurnUsed || 0) < 1;
+    return <button key={id + i} className={"call-chip" + (react ? " react" : elig ? "" : " dim")} title={c.d} onClick={() => { if (react) { say(tr(`🛡️ »${c.n}« se odigra sam v svojem oknu (poškodba/dražba).`, `🛡️ "${c.n}" plays itself in its own window (injury/auction).`)); return; } if ((g.callTurnUsed || 0) >= 1) { say(tr("Na potezo lahko odigraš le 1 klic.", "You can play only 1 call per turn.")); return; } if (!callEligible(id)) { say(id === "drbine" ? tr("Nisi poškodovan.", "You have no injured player.") : id === "kava" ? tr("Nimaš nezadovoljnega igralca.", "You have no unhappy player.") : c.d); return; } setCallModal({ id }); }}>{c.ico} {c.n.split(" ")[0]}</button>;
+  });
   const cascActiveIdx = casc && casc.i >= 0 ? casc.steps[casc.i].idx : -1;
   const starterCards = Object.values(proj.starters);
   // ocena rosterja (najboljša peterka) — za mejni prispevek igralca
@@ -3613,6 +3641,8 @@ export default function App() {
           <span className="deck-corner-count">{g.deck.length}</span>
           <span className="deck-corner-lbl">{tr("KUP", "DECK")}</span>
         </button>
+        {/* ☎️ klici kot gumbi NAD skritim kupom (samo telefon; brez napisa) */}
+        {callChips.length > 0 && <div className="calls-corner">{callChips}</div>}
         {/* TRG (AI odpad) — vogalna ikona levo spodaj (kot Slay the Spire discard pile); tap = pregled čez oder */}
         <button className={"mkt-corner" + (drawPhase ? " draw-hi" : "") + (marketFlash ? " flash" : "")} onClick={() => { setMktTab("mkt"); setMktOpen(true); }} title={tr("Trg — AI-jev odpad (−25 %)", "Market — AI's waived pile (−25%)")}>
           <span className="deck-corner-emblem"><Ico k="waive" s={20} style={{ verticalAlign: 0 }} /></span>
@@ -3673,15 +3703,18 @@ export default function App() {
         </div>}
         {/* MOJ ROSTER */}
         <div className="panel">
-          {/* Balatro joker-strip: bonusi kot ikonice na samem vrhu odra (nad .stage-top) */}
-          <BonusRow chips={bonusChips} activeIdx={cascActiveIdx} onExplain={say} />
           {/* vrh odra: identiteta levo, orodja desno — brez naslovne vrstice (projekcija je na semaforju) */}
           <div className="stage-top">
-            {/* MOBILNA statusna letev (namesto pulta): točke · sezona · plačna masa — vse ostalo je v stage-tools */}
+            {/* MOBILNA statusna letev (namesto pulta): točke · sezona · plačna masa (mini bar) — ostalo je v stage-tools */}
             <div className="mob-stats">
               <span className="ms-score"><b className={cascH >= aiProj.total ? "ms-pos" : "ms-neg"}>{cascH}</b><span className="ms-vs">:</span><b>{aiProj.total}</b></span>
               {g.franchise && <span className="ms-item">S{g.season}/{g.seasons} · 🏆{g.titles.h}:{g.titles.a}</span>}
-              <span className="ms-item">💰{myEff + (g.h.deadCap || 0)}/{capNow}</span>
+              {(() => { const sal = myEff + (g.h.deadCap || 0); const max = capNow + 70; const col = sal > capNow + APRON ? "#8f1d12" : sal > capNow ? "#BA7517" : "#2E7D32"; return (
+                <span className="ms-item ms-cap" title={tr(`Plačna masa ${sal}/${capNow} M$ (apron ${capNow + APRON})`, `Payroll ${sal}/${capNow} M$ (apron ${capNow + APRON})`)}>
+                  <span className="ms-capbar"><span className="ms-capfill" style={{ width: `${Math.min(100, (sal / max) * 100)}%`, background: col }} /><span className="ms-capmark" style={{ left: `${(capNow / max) * 100}%` }} /></span>
+                  <b style={{ color: col }}>{sal}</b>/{capNow}
+                </span>
+              ); })()}
             </div>
             <div className="stage-chips">
               {g.philosophy && g.philosophy.h && <button className="coach-chip" style={{ background: "#efe6fb", borderColor: "#d8c6f0" }} onClick={() => say(philOf(g.philosophy.h).d)}>🧭 <b>{philOf(g.philosophy.h).n}</b></button>}
@@ -3697,15 +3730,24 @@ export default function App() {
               <button className="iconbtn" onClick={() => setMuted(SFX.toggle())} title={muted ? tr("Vklopi zvok", "Sound on") : tr("Izklopi zvok", "Sound off")} aria-label={muted ? tr("Vklopi zvok", "Sound on") : tr("Izklopi zvok", "Sound off")} style={{ opacity: muted ? 0.5 : 1 }}><Speaker on={!muted} s={18} /></button>
               <button className="iconbtn rules-mob" onClick={() => setShowRules(true)} title={tr("Pravila & dnevnik", "Rules & log")} aria-label={tr("Pravila & dnevnik", "Rules & log")}>📜</button>
               <button className="infob" onClick={() => setHelp("roster")} aria-label={tr("Pomoč: roster", "Help: roster")}>?</button>
+              {/* ⚙️ mobilne nastavitve: glasba/zvok/pravila/pomoč pod enim koleščkom (posamični gumbi so na telefonu skriti) */}
+              <span className="gear-wrap">
+                <button className="iconbtn gear-btn" onClick={() => setGearOpen(!gearOpen)} title={tr("Nastavitve", "Settings")} aria-label={tr("Nastavitve", "Settings")}>⚙️</button>
+                {gearOpen && <span className="gear-pop">
+                  <button className="iconbtn" onClick={() => setMusic(MUSIC.toggle())} aria-label={tr("Glasba", "Music")} style={{ opacity: music ? 1 : 0.5 }}><Note on={music} s={18} /></button>
+                  <button className="iconbtn" onClick={() => setMuted(SFX.toggle())} aria-label={tr("Zvok", "Sound")} style={{ opacity: muted ? 0.5 : 1 }}><Speaker on={!muted} s={18} /></button>
+                  <button className="iconbtn" onClick={() => { setGearOpen(false); setShowRules(true); }} aria-label={tr("Pravila", "Rules")}>📜</button>
+                  <button className="iconbtn" onClick={() => { setGearOpen(false); setHelp("roster"); }} aria-label={tr("Pomoč", "Help")}>?</button>
+                </span>}
+              </span>
             </div>
           </div>
-          {/* ☎️ ROLODEX — klici, ki jih odigraš med sezono */}
+          {/* Balatro joker-strip: bonusi POD statusno vrstico */}
+          <BonusRow chips={bonusChips} activeIdx={cascActiveIdx} onExplain={say} />
+          {/* ☎️ ROLODEX — klici; na telefonu so isti gumbi v .calls-corner nad kupom (ta vrstica je tam skrita) */}
           <div className="rolodex">
             <span className="rolo-lbl">☎️ ROLODEX {(g.h.calls || []).length}/3</span>
-            {(g.h.calls || []).map((id, i) => {
-              const c = CALLS[id]; const react = c.kind === "reaction"; const elig = !react && callEligible(id) && (g.callTurnUsed || 0) < 1;
-              return <button key={id + i} className={"call-chip" + (react ? " react" : elig ? "" : " dim")} title={c.d} onClick={() => { if (react) { say(tr(`🛡️ »${c.n}« se odigra sam v svojem oknu (poškodba/dražba).`, `🛡️ "${c.n}" plays itself in its own window (injury/auction).`)); return; } if ((g.callTurnUsed || 0) >= 1) { say(tr("Na potezo lahko odigraš le 1 klic.", "You can play only 1 call per turn.")); return; } if (!callEligible(id)) { say(id === "drbine" ? tr("Nisi poškodovan.", "You have no injured player.") : id === "kava" ? tr("Nimaš nezadovoljnega igralca.", "You have no unhappy player.") : c.d); return; } setCallModal({ id }); }}>{c.ico} {c.n.split(" ")[0]}</button>;
-            })}
+            {callChips}
             {(g.h.calls || []).length === 0 && <span className="rolo-empty">{tr("— prazen (klice dobiš z izgubljeno dražbo in ob začetku sezone)", "— empty (you earn calls by losing auctions and at season start)")}</span>}
           </div>
           {g.h.deadCap > 0 && <div className="hint red">{tr(`✂️ Dead cap: +${g.h.deadCap} M$ v plačni masi do konca runde (odpuščeni igralci).`, `✂️ Dead cap: +${g.h.deadCap} M$ on the payroll until the end of the round (waived players).`)}</div>}
@@ -3906,7 +3948,7 @@ export default function App() {
       {/* RAZKRITJE VLEČENE KARTE */}
       {reveal && (
         <div className="modal-bg" onClick={() => { if (flipped) setReveal(null); else setFlipped(true); }}>
-          <div className="modal" onClick={(e) => { e.stopPropagation(); if (!flipped) setFlipped(true); }}>
+          <div className="modal reveal-modal" onClick={(e) => { e.stopPropagation(); if (!flipped) setFlipped(true); }}>
             <h3>{flipped ? <>{reveal.disc ? tr("🟢 S popustom: ", "🟢 Discounted: ") : tr("🂠 Vlekel si: ", "🂠 You drew: ")}{reveal.n}</> : tr("🂠 Skriti kup …", "🂠 Hidden deck …")}</h3>
             <div className="auc-card flip-scene">
               <div className={"flip-inner" + (flipped ? " flipped" : "")}>
