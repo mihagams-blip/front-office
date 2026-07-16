@@ -1520,6 +1520,20 @@ export default function App() {
   const [mktOpen, setMktOpen] = useState(false); // MOBILNI pregled trga (plavajoč čez oder); desktop ima poln trg v pultu
   const [mktTab, setMktTab] = useState("mkt"); // zavihek v pregledu: "mkt" = AI odpad (trg) | "disc" = tvoj odpad
   const [gearOpen, setGearOpen] = useState(false); // ⚙️ mobilni meni nastavitev (glasba/zvok/pravila/pomoč)
+  // 📢 TELEFON: ob vstopu v fazo vlečenja se trg (s skritim kupom) odpre SAM, ob koncu faze pa zapre —
+  // takoj je jasno, da je treba vzeti karto ("preveč zmede, če gledaš oder in ne veš, da moraš pritisnit").
+  // Ref sledi prejšnjemu stanju faze, da ročno zaprtje/odprtje med fazo ne prepisujeva.
+  const wasDrawRef = useRef(false);
+  useEffect(() => {
+    const compact = window.matchMedia("(orientation: landscape) and (max-height: 760px), (orientation: portrait) and (max-width: 760px)").matches;
+    const philP = g && g.franchise && (!g.philosophy || !g.philosophy.h);
+    const dp = !!(g && screen === "play" && g.phase === "draw" && !aiThinking && !g.auction && !g.result && !philP && g.h.coach);
+    if (compact) {
+      if (dp && !wasDrawRef.current) { setMktTab("mkt"); setMktOpen(true); }
+      else if (!dp && wasDrawRef.current) setMktOpen(false);
+    }
+    wasDrawRef.current = dp;
+  }, [g, aiThinking, screen]);
   const [help, setHelp] = useState(null); // ⓘ pomoč za panel: 'kupi' | 'roster' | 'roka'
   const [marketFlash, setMarketFlash] = useState(false); // 🟠 utrip Trga po kliku na draw-prompt
   const marketFlashTimer = useRef(null);
@@ -2495,7 +2509,7 @@ export default function App() {
       .deckbtn-count { font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:12px; background:#F0B429; color:#152744; border-radius:999px; padding:1px 10px; box-shadow:0 1px 2px rgba(0,0,0,.4); }
       .deckbtn small { font-family:'Barlow Condensed',sans-serif; font-weight:500; font-size:11px; opacity:.75; text-align:center; }
       /* mobilni elementi — privzeto SKRITI (desktop kaže pult + poln .market-full); prižgejo se v kompaktnem tieru */
-      .deck-corner, .mkt-corner, .ai-corner, .mob-stats, .rules-mob, .gear-wrap, .calls-corner { display:none; }
+      .mkt-corner, .ai-corner, .mob-stats, .rules-mob, .gear-wrap, .calls-corner { display:none; }
       .mkt-tabs { display:flex; gap:6px; margin:6px 0 2px; }
       .mkt-tabs button { font-family:inherit; font-size:12px; font-weight:700; padding:4px 11px; border-radius:8px; border:1px solid #e0d5bc; background:#f2e9d4; color:#152744; cursor:pointer; }
       .mkt-tabs button.active { background:#152744; color:#F5EBDC; border-color:#152744; }
@@ -2934,7 +2948,7 @@ export default function App() {
         .fo-play .stage-top { margin-bottom: 2px; }
         .fo-play .stage-tools > .optbtn { height: 26px; font-size: 11.5px; padding: 0 8px; }
         .fo-play .stage-tools > .infob { width: 26px; height: 26px; font-size: 13px; }
-        .fo-play .bonus-row { flex-wrap: nowrap; overflow-x: auto; min-height: 28px; } /* telefon: nazaj na en h-scroll trak */
+        .fo-play .bonus-row { flex-wrap: nowrap; overflow-x: auto; min-height: 24px; } /* telefon: nazaj na en h-scroll trak */
         .fo-play .bchip { padding: 2px 7px; font-size: 11px; } /* ~22–24 px visok chip */
         .fo-play .bchip b { font-size: 12px; }
         .fo-play .cast-float { font-size: 13px; }
@@ -2957,15 +2971,18 @@ export default function App() {
         .fo-play .toast { max-width: calc(var(--uw) * 100 - var(--lay-w) - 24px); padding: 8px 12px; font-size: 13px; }
         .fo-play .modal { max-height: calc(var(--uh) * 100 - 32px); padding: 12px; } /* 32px = 2×16px padding .modal-bg */
 
-        /* ===== NIKOLI SCROLLA: karte v roki + mini so kompaktne (kot Balatro) — poln detajl na tap (inspect) ===== */
-        /* roka: skrij gostobesedne vrstice, pomanjšaj obraz → ~110px namesto ~190px; OVR/pozicija/plača/vpliv ostanejo */
-        .fo-play .hand .card { padding: 4px 5px; }
-        .fo-play .hand .card .card-club, .fo-play .hand .card .career, .fo-play .hand .card .pot, .fo-play .hand .card .pot-job, .fo-play .hand .card .vals .val-chip:last-child { display: none; }
-        .fo-play .hand .card .face { width: 30px; height: 30px; }
-        .fo-play .hand .card .card-name { min-height: 0; font-size: 11px; margin: 2px 0; }
-        .fo-play .hand .card .trait { font-size: 9.5px; }
-        .fo-play .hand .card .vals { font-size: 9.5px; }
-        .fo-play .hand .card .card-row.btm { margin-top: 2px; }
+        /* ===== ROKA: karte večje in s VSEMI podatki s kartice (klub, kariera, lastnost, projekcije) —
+           nič skritega, drobne pisave + majhen obraz, da vse paše brez scrolla ===== */
+        .fo-play .hand .card { width: clamp(112px, calc(var(--uh) * 32), 152px); min-width: clamp(112px, calc(var(--uh) * 32), 152px); padding: 3px 6px; }
+        .fo-play .hand .card .card-name { min-height: 0; font-size: 11px; margin: 1px 0; }
+        .fo-play .hand .card .card-club { font-size: 9px; }
+        .fo-play .hand .card .career { font-size: 8.5px; margin-top: 0; }
+        .fo-play .hand .card .trait { font-size: 9px; margin-top: 1px; padding: 0 4px; }
+        .fo-play .hand .card .vals { font-size: 9px; margin-top: 1px; padding: 1px 4px; column-gap: 6px; }
+        .fo-play .hand .card .pot { font-size: 9px; margin-top: 1px; }
+        /* rookie: opis vloge/kljuke v roki na eno vrstico (celoten tekst pove modal na tap) */
+        .fo-play .hand .card .pot-job { font-size: 8.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+        .fo-play .hand .card .card-row.btm { margin-top: 1px; }
         /* mini (peterka/klop): skrij "klop X tč", pomanjšaj → ~62px; ↑ v peterko ostane */
         .fo-play .lay-right .mini { padding: 3px 5px; }
         .fo-play .lay-right .mini .mini-pts { display: none; }
@@ -2975,12 +2992,12 @@ export default function App() {
         .fo-play .lay-right .mini .mini-promote { margin-top: 2px; padding-top: 2px; font-size: 9px; }
         /* stisni ritem odra */
         .fo-play .lay-right { padding-bottom: calc(58px + env(safe-area-inset-bottom, 0px)); }
-        .fo-play .lay-right > .panel { padding: 2px 2px; }
+        .fo-play .lay-right > .panel { padding: 1px 2px; }
         .fo-play .stage-top { margin-bottom: 1px; }
         .fo-play .rolodex { margin: 1px 0 2px; }
-        .fo-play .five-sep { margin: 3px 2px 0; }
+        .fo-play .five-sep { margin: 2px 2px 0; }
         .fo-play .roster-grid { gap: 4px; }
-        .fo-play .hand { padding: 6px 6px 4px; }
+        .fo-play .hand { padding: 4px 6px 2px; }
         /* še tanjši gumbi, da oder dobi zrak */
         .fo-play .actions .abtn { padding: 7px 10px; font-size: 13px; }
         .fo-play .actbar-prompt { padding: 7px 10px; font-size: 12px; }
@@ -3004,9 +3021,8 @@ export default function App() {
         .fo-play .capm-side { padding: 4px 9px 5px; }
         .fo-play .ai-last { display: none; } /* sekundarna AI vrstica požre višino; glavna vrstica ostane */
         .fo-play .lay-left .linkbtn { margin-top: 2px; font-size: 12px; }
-        /* roka: še krajše (skrij projekcijo v peterki), obraz 26 → ~112px */
-        .fo-play .hand .card .vals { display: none; }
-        .fo-play .hand .card .face { width: 26px; height: 26px; }
+        /* roka: majhen obraz — višino porabijo podatki, ne portret */
+        .fo-play .hand .card .face { width: 24px; height: 24px; margin-top: 1px; }
         /* mini še malo nižje */
         .fo-play .lay-right .mini { padding: 2px 4px; line-height: 1.15; }
         .fo-play .lay-right .mini .mini-face { width: 11px; height: 11px; }
@@ -3040,8 +3056,7 @@ export default function App() {
         /* ===== ZVEZNA VIŠINSKA SKALA: na višjih ležečih zaslonih (tablica) karte zrastejo in napolnijo prostor,
            na telefonu se skrčijo — vedno brez scrolla (te vrstice so ZADNJE, zato povozijo fiksne px zgoraj) ===== */
         .fo-play { --minih: clamp(40px, calc(var(--uh) * 10.5), 100px); }
-        .fo-play .hand .card .face { width: clamp(22px, calc(var(--uh) * 5.2), 44px); height: clamp(22px, calc(var(--uh) * 5.2), 44px); }
-        .fo-play .hand .card .trait { display: none; } /* lastnost skrita v roki (pozicija je na znački, detajl na tap) — sprosti višino nad gumbi */
+        .fo-play .hand .card .face { width: clamp(18px, calc(var(--uh) * 5), 40px); height: clamp(18px, calc(var(--uh) * 5), 40px); margin-top: 1px; }
         .fo-play .hand .card .card-name { font-size: clamp(11px, calc(var(--uh) * 2.5), 15px); min-height: 0; }
         .fo-play .hand .card .ovr { font-size: clamp(13px, calc(var(--uh) * 3), 20px); }
         .fo-play .hand .card .trait { font-size: clamp(9.5px, calc(var(--uh) * 2), 12px); }
@@ -3100,22 +3115,29 @@ export default function App() {
         .fo-play .gear-wrap .gear-btn { display: inline-flex; width: 28px; height: 28px; }
         .fo-play .gear-pop { position: absolute; top: calc(100% + 4px); right: 0; display: flex; gap: 4px; background: #fffdf7; border: 1.5px solid #152744; border-radius: 10px; padding: 4px; z-index: 30; box-shadow: 0 5px 14px rgba(8,16,32,.35); }
         .fo-play .gear-pop .iconbtn { display: inline-flex; width: 28px; height: 28px; }
-        /* vogalne ikone (skupen videz): kup desno, trg + AI levo */
+        /* vogalne ikone (skupen videz): trg (+skriti kup) in AI LEVO — desna stran je prosta za rolodex */
         .fo-play .lay-right { position: relative; }
-        .fo-play .deck-corner, .fo-play .mkt-corner, .fo-play .ai-corner { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; position: absolute; right: 3px; bottom: calc(54px + env(safe-area-inset-bottom, 0px)); z-index: 12; width: 46px; padding: 5px 3px; border-radius: 10px; border: 2px solid #33507e; background: #14294a; color: #F5EBDC; cursor: pointer; }
-        .fo-play .mkt-corner { right: auto; left: 3px; }
-        .fo-play .ai-corner { right: auto; left: 3px; bottom: calc(138px + env(safe-area-inset-bottom, 0px)); } /* nad trgom (skupaj = AI vogal) */
+        .fo-play .mkt-corner, .fo-play .ai-corner { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; position: absolute; right: auto; left: 3px; bottom: calc(54px + env(safe-area-inset-bottom, 0px)); z-index: 12; width: 46px; padding: 5px 3px; border-radius: 10px; border: 2px solid #33507e; background: #14294a; color: #F5EBDC; cursor: pointer; }
+        .fo-play .ai-corner { bottom: calc(138px + env(safe-area-inset-bottom, 0px)); } /* nad trgom (skupaj = AI vogal) */
         .fo-play .deck-corner-emblem { display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; border: 1px solid rgba(240,180,41,.5); background: rgba(240,180,41,.12); }
         .fo-play .deck-corner-count { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 11px; background: #F0B429; color: #152744; border-radius: 999px; padding: 0 6px; }
         .fo-play .deck-corner-lbl { font-size: 8px; letter-spacing: .5px; opacity: .8; }
-        .fo-play .deck-corner:disabled { opacity: .5; cursor: default; }
-        .fo-play .deck-corner.draw-hi, .fo-play .mkt-corner.draw-hi { border-color: #F0B429; animation: deckpulse 1.1s ease-in-out infinite; }
-        /* močnejši utrip, ko igralec sredi faze vlečenja pritisne karto v roki — UI ga usmeri h kupom */
-        .fo-play .deck-corner.flash, .fo-play .mkt-corner.flash { animation: deckpulse .3s ease-in-out 5; border-color: #F0B429; box-shadow: 0 0 0 3px rgba(240,180,41,.65); }
+        .fo-play .mkt-corner.draw-hi { border-color: #F0B429; animation: deckpulse 1.1s ease-in-out infinite; }
+        /* močnejši utrip, ko igralec sredi faze vlečenja pritisne karto v roki — UI ga usmeri k trgu */
+        .fo-play .mkt-corner.flash { animation: deckpulse .3s ease-in-out 5; border-color: #F0B429; box-shadow: 0 0 0 3px rgba(240,180,41,.65); }
         /* plavajoča pregleda (trg/AI) — centrirana čez oder polne širine */
         .fo-play .market-pop, .fo-play .ai-pop { position: fixed; top: 50%; right: auto; left: 50%; transform: translate(-50%, -50%); width: min(640px, calc(100% - 20px)); max-height: 92%; overflow-y: auto; z-index: 40; }
         .fo-play .market-pop .fa-row { flex-wrap: wrap; overflow: visible; padding: 4px 0; }
         .fo-play .market-pop .fa-row .card { width: 96px; min-width: 96px; }
+        /* trg + skriti kup v ENEM pregledu: karte trga levo, obrnjen kup desno (naključni vlek, polna cena) */
+        .fo-play .mkt-body { display: flex; align-items: stretch; gap: 8px; }
+        .fo-play .mkt-body .fa-row { flex: 1; min-width: 0; }
+        .fo-play .pop-deck { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; flex: 0 0 96px; margin: 4px 0; padding: 8px 6px; border-radius: 12px; border: 2px solid #33507e; background: repeating-linear-gradient(135deg, #14294a 0 10px, #182f54 10px 20px); color: #F5EBDC; cursor: pointer; font-family: inherit; }
+        .fo-play .pop-deck:disabled { opacity: .5; cursor: default; }
+        .fo-play .pop-deck.draw-hi { border-color: #F0B429; animation: deckpulse 1.1s ease-in-out infinite; }
+        .fo-play .pop-deck-count { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 12px; background: #F0B429; color: #152744; border-radius: 999px; padding: 0 8px; }
+        .fo-play .pop-deck-lbl { font-size: 9px; letter-spacing: .6px; opacity: .85; text-align: center; }
+        .fo-play .pop-deck small { font-size: 8.5px; opacity: .7; }
         /* roka: stranski rezervi za vogalne ikone; poziv "najprej vzemi karto" skrit — vodijo utripajoči kupi */
         .fo-play .hand { padding-left: 52px; padding-right: 52px; }
         .fo-play .actbar-prompt { display: none; }
@@ -3125,21 +3147,18 @@ export default function App() {
         .fo-play .bchip b { font-size: 11px; }
         .fo-play .call-chip { font-size: 10px; padding: 2px 7px; }
         .fo-play .rolo-lbl { font-size: 9px; }
-        /* podrobnosti karte: samo bistvo — gostobesedne vrstice skrite (na kartici/namizju ostanejo) */
-        .fo-play .inspect-modal .verbose { display: none; }
+        /* modal kartice (trg/roka/roster): brez naslova in vrstic, ki ponavljajo podatke s kartice —
+           ostane samo kartica, "Kaj naredi tvoji peterki" (če velja), rdeče opozorilo ob nemogočem podpisu in gumbi */
+        .fo-play .inspect-modal h3, .fo-play .inspect-modal > ul, .fo-play .inspect-modal .addbox-est { display: none; }
         /* ob izbiri karte v roki: unlock predogled + link pod roko skrita (isto pove modal na tap) — sicer oder preraste 375px */
         .fo-play .lay-right .panel .unlocks, .fo-play .lay-right .panel > .linkbtn { display: none; }
         /* peterka + klop centrirani na odru (ne levo) */
         .fo-play .roster-grid { justify-content: center; }
-        /* rolodex vrstica skrita — klici so gumbi v .calls-corner nad kupom (brez napisa) */
+        /* rolodex vrstica skrita — klici so gumbi v desnem kotu (brez napisa); kup je zdaj v pregledu trga, zato je desno več prostora */
         .fo-play .rolodex { display: none; }
-        .fo-play .calls-corner { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; position: absolute; right: 3px; bottom: calc(138px + env(safe-area-inset-bottom, 0px)); z-index: 12; }
-        /* IZBRANA karta v roki se poveča in razkrije skrite podatke (Balatro dvig) — zato ni potrebe po dodatnih razlagah */
-        .fo-play .hand .card.sel { width: calc(var(--cardw) * 1.35); min-width: calc(var(--cardw) * 1.35); translate: 0 -20px; z-index: 30; }
-        .fo-play .hand .card.sel .face { width: 36px; height: 36px; }
-        .fo-play .hand .card.sel .trait { display: block; font-size: 10px; }
-        .fo-play .hand .card.sel .vals { display: flex; font-size: 9.5px; }
-        .fo-play .hand .card.sel .card-club { display: block; font-size: 9.5px; }
+        .fo-play .calls-corner { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; position: absolute; right: 3px; bottom: calc(54px + env(safe-area-inset-bottom, 0px)); z-index: 12; }
+        /* IZBRANA karta: samo Balatro dvig — vsi podatki so zdaj vidni na vsaki karti v roki */
+        .fo-play .hand .card.sel { translate: 0 -10px; z-index: 30; }
         /* "Vlekel si" modal: brez naslova in razlag — samo kartica + gumb */
         .fo-play .reveal-modal h3, .fo-play .reveal-modal .flip-info > p, .fo-play .reveal-modal .flip-info > ul, .fo-play .reveal-modal .flip-info .unlocks, .fo-play .reveal-modal .flip-info .addbox { display: none; }
       }
@@ -3235,7 +3254,7 @@ export default function App() {
             <button className="linkbtn" onClick={() => { try { localStorage.setItem("fo-lang", LANG === "en" ? "sl" : "en"); } catch {} window.location.reload(); }}>{LANG === "en" ? "🇸🇮 Slovensko" : "🇬🇧 English"}</button>
           </div>
           {/* diskretna oznaka verzije — da v posnetku vidim, katera je objavljena */}
-          <div style={{ marginTop: 6, fontSize: 10, opacity: 0.4, letterSpacing: 0.5 }}>v0.8.6</div>
+          <div style={{ marginTop: 6, fontSize: 10, opacity: 0.4, letterSpacing: 0.5 }}>v0.8.8</div>
         </div>
         {showRules && <Rules onClose={() => setShowRules(false)} />}
       </div>
@@ -3635,16 +3654,10 @@ export default function App() {
         </div>{/* /lay-left */}
         {/* desna kolona — oder: peterka, klop, roka */}
         <div className="lay-right">
-        {/* SKRITI KUP — kupček v desnem kotu odra (SAMO mobilni; desktop ga ima v pultu). Utripne v fazi vlečenja. */}
-        <button className={"deck-corner" + (drawPhase ? " draw-hi" : "") + (marketFlash ? " flash" : "")} disabled={!drawPhase} onClick={drawDeck} title={tr("Skriti kup — vleci karto (polna cena)", "Hidden deck — draw a card (full price)")}>
-          <span className="deck-corner-emblem"><Ico k="ball" s={22} style={{ verticalAlign: 0 }} /></span>
-          <span className="deck-corner-count">{g.deck.length}</span>
-          <span className="deck-corner-lbl">{tr("KUP", "DECK")}</span>
-        </button>
-        {/* ☎️ klici kot gumbi NAD skritim kupom (samo telefon; brez napisa) */}
+        {/* ☎️ klici kot gumbi v desnem kotu odra (samo telefon; brez napisa) — skriti kup je zdaj v pregledu trga */}
         {callChips.length > 0 && <div className="calls-corner">{callChips}</div>}
-        {/* TRG (AI odpad) — vogalna ikona levo spodaj (kot Slay the Spire discard pile); tap = pregled čez oder */}
-        <button className={"mkt-corner" + (drawPhase ? " draw-hi" : "") + (marketFlash ? " flash" : "")} onClick={() => { setMktTab("mkt"); setMktOpen(true); }} title={tr("Trg — AI-jev odpad (−25 %)", "Market — AI's waived pile (−25%)")}>
+        {/* TRG + SKRITI KUP — ena vogalna ikona levo spodaj (kot Slay the Spire discard pile); tap = pregled čez oder */}
+        <button className={"mkt-corner" + (drawPhase ? " draw-hi" : "") + (marketFlash ? " flash" : "")} onClick={() => { setMktTab("mkt"); setMktOpen(true); }} title={tr("Trg + skriti kup — vzemi karto", "Market + hidden deck — take a card")}>
           <span className="deck-corner-emblem"><Ico k="waive" s={20} style={{ verticalAlign: 0 }} /></span>
           <span className="deck-corner-count">{g.aDisc.length}</span>
           <span className="deck-corner-lbl">{tr("TRG", "MKT")}</span>
@@ -3655,22 +3668,34 @@ export default function App() {
           <span className="deck-corner-count">{g.a.roster.length}</span>
           <span className="deck-corner-lbl">AI</span>
         </button>
-        {/* pregled trga — plavajoč čez oder (fixed; deluje na obeh napravah, odpira ga vogalna ikona) */}
+        {/* pregled trga + skriti kup — plavajoč čez oder; v fazi vlečenja se odpre SAM (glej useEffect ob mktOpen).
+            Tap na karto NE zapre pregleda — modal podrobnosti pride čezenj, Prekliči vrne na odprt trg. */}
         {mktOpen && <div className="panel-pop market-pop">
           <div className="lbl" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span>{mktTab === "disc" ? tr("Tvoj odpad — AI ga lahko pobere", "Your waived pile — AI can pick up") : tr("Trg — AI-jev odpad · vzemi 1 s popustom", "Market — AI's waived pile · take 1 at a discount")}</span>
+            <span>{mktTab === "disc" ? tr("Tvoj odpad — AI ga lahko pobere", "Your waived pile — AI can pick up") : drawPhase ? tr("Vzemi 1 karto: trg (−25 %) ali skriti kup", "Take 1 card: market (−25%) or hidden deck") : tr("Trg — AI-jev odpad · vzemi 1 s popustom", "Market — AI's waived pile · take 1 at a discount")}</span>
             <button className="infob" onClick={() => setMktOpen(false)} aria-label={tr("Zapri", "Close")}>✕</button>
           </div>
           <div className="mkt-tabs">
             <button className={mktTab !== "disc" ? "active" : ""} onClick={() => setMktTab("mkt")}>{tr("Trg", "Market")} {g.aDisc.length}</button>
             {g.hDisc.length > 0 && <button className={mktTab === "disc" ? "active" : ""} onClick={() => setMktTab("disc")}>{tr("Tvoj odpad", "Waived")} {g.hDisc.length}</button>}
           </div>
-          <div className="fa-row">
-            {mktTab === "disc"
-              ? g.hDisc.slice(-8).map((c) => <PlayerCard key={c.id} c={c} dim onClick={() => {}} />)
-              : (g.aDisc.length > 0
-                ? g.aDisc.slice(-8).map((c) => <PlayerCard key={c.id} c={c} dim={!drawPhase} ribbon={`−25% → ${discSal(c)}M`} onClick={() => { if (drawPhase) { setInspect({ card: c, side: "market" }); setMktOpen(false); } }} />)
-                : <span className="pile-empty">{tr("Prazno — AI še ni ničesar odvrgel.", "Empty — AI hasn't discarded anything yet.")}</span>)}
+          <div className="mkt-body">
+            <div className="fa-row">
+              {mktTab === "disc"
+                ? g.hDisc.slice(-8).map((c) => <PlayerCard key={c.id} c={c} dim onClick={() => {}} />)
+                : (g.aDisc.length > 0
+                  ? g.aDisc.slice(-8).map((c) => <PlayerCard key={c.id} c={c} dim={!drawPhase} ribbon={`−25% → ${discSal(c)}M`} onClick={() => { if (drawPhase) setInspect({ card: c, side: "market" }); }} />)
+                  : <span className="pile-empty">{tr("Prazno — AI še ni ničesar odvrgel.", "Empty — AI hasn't discarded anything yet.")}</span>)}
+            </div>
+            {/* SKRITI KUP — obrnjene karte na desni strani pregleda (naključni vlek, polna cena) */}
+            {mktTab !== "disc" && (
+              <button className={"pop-deck" + (drawPhase ? " draw-hi" : "")} disabled={!drawPhase} onClick={drawDeck} title={tr("Skriti kup — vleci naključno karto (polna cena)", "Hidden deck — draw a random card (full price)")}>
+                <span className="deck-corner-emblem"><Ico k="ball" s={24} style={{ verticalAlign: 0 }} /></span>
+                <span className="pop-deck-count">{g.deck.length}</span>
+                <span className="pop-deck-lbl">{tr("SKRITI KUP", "HIDDEN DECK")}</span>
+                <small>{tr("vleci naključno", "draw random")}</small>
+              </button>
+            )}
           </div>
         </div>}
         {/* pregled AI ekipe — plavajoč čez oder (odpirata ga ai-tile v pultu na namizju in ai-corner na telefonu) */}
@@ -3802,8 +3827,8 @@ export default function App() {
           {/* puščica ⬅️ brezpogojno: portrait skrije igro za rotate-note, dvostolpični layout (trg levo) je edini vidni */}
           <div className="act-row">
             {drawPhase ? (
-              <button key={"p" + sel} className={"actbar-prompt" + (selCard ? " nudge" : "")} onClick={() => { flashMarket(); say(tr("Najprej vzemi karto: 🂠 skriti kup (desno na odru) ali 🟢 trg (levo).", "First take a card: 🂠 hidden deck (right of the stage) or 🟢 market (left).")); }}>
-                {selCard ? tr("Najprej vzemi karto (kup desno / trg levo), nato lahko podpišeš", "First take a card (deck right / market left), then you can sign") : tr("Vzemi karto — 🂠 kup (desno) ali 🟢 trg (levo)", "Take a card — 🂠 deck (right) or 🟢 market (left)")}
+              <button key={"p" + sel} className={"actbar-prompt" + (selCard ? " nudge" : "")} onClick={() => { flashMarket(); say(tr("Najprej vzemi karto: 🂠 skriti kup ali 🟢 trg.", "First take a card: 🂠 hidden deck or 🟢 market.")); }}>
+                {selCard ? tr("Najprej vzemi karto (🂠 kup ali 🟢 trg), nato lahko podpišeš", "First take a card (🂠 deck or 🟢 market), then you can sign") : tr("Vzemi karto — 🂠 skriti kup ali 🟢 trg", "Take a card — 🂠 hidden deck or 🟢 market")}
               </button>
             ) : (
               <>
@@ -4115,7 +4140,7 @@ export default function App() {
               </ul>
               {!injured && others.length > 0 && <UnlockPreview card={c} sCards={others} />}
               {(isHand || isMarket) && (
-                <div className="addbox">
+                <div className={"addbox" + (signable ? " addbox-est" : "")}>{/* addbox-est (ocena) je na telefonu skrit; rdeče opozorilo ostane */}
                   {signable
                     ? <><div className="addval">{tr("Doda tvoji ekipi ≈ ", "Adds to your team ≈ ")}<b>{(() => { const v = addValue(g.h.roster, c, "h"); return (v >= 0 ? "+" : "") + v; })()}</b> {tr("tč", "pts")}</div><div className="addstand">{tr("Trenutni izid — Ti", "Current score — You")} <b>{proj.total}</b> · AI <b>{aiProj.total}</b></div></>
                     : <div className="addval" style={{ color: "#b23b2e" }}>{tr("Ne moreš podpisati:", "You can't sign:")} {whyNot}</div>}
