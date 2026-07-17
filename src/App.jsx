@@ -3178,7 +3178,7 @@ export default function App() {
         /* vogalne ikone: TRG (+skriti kup) LEVO spodaj (proč od zareze/kamere, ki je na vizualni levi-sredini);
            AI GM prestavljen DESNO (drugače ga na iPhonu prekrije selfie kamera), skupaj z rolodex klici */
         .fo-play .lay-right { position: relative; }
-        .fo-play .mkt-corner, .fo-play .ai-corner { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; position: absolute; z-index: 12; width: 46px; padding: 5px 3px; border-radius: 10px; border: 2px solid #33507e; background: #14294a; color: #F5EBDC; cursor: pointer; }
+        .fo-play .mkt-corner, .fo-play .ai-corner { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; position: absolute; z-index: 37; width: 46px; padding: 5px 3px; border-radius: 10px; border: 2px solid #33507e; background: #14294a; color: #F5EBDC; cursor: pointer; }/* z-index 37 = nad roko (35) → gumbov nikoli ne prekrije karta */
         .fo-play .mkt-corner { left: 3px; right: auto; bottom: calc(54px + env(safe-area-inset-bottom, 0px)); }
         .fo-play .ai-corner { right: 3px; left: auto; bottom: calc(54px + env(safe-area-inset-bottom, 0px)); } /* DESNO spodaj */
         .fo-play .deck-corner-emblem { display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; border: 1px solid rgba(240,180,41,.5); background: rgba(240,180,41,.12); }
@@ -3219,7 +3219,7 @@ export default function App() {
         /* rolodex vrstica skrita — klici so gumbi v desnem kotu (brez napisa); kup je zdaj v pregledu trga, zato je desno več prostora */
         .fo-play .rolodex { display: none; }
         /* rolodex klici nad AI-vogalom (oba desno) — proč od leve kamere */
-        .fo-play .calls-corner { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; position: absolute; right: 3px; bottom: calc(126px + env(safe-area-inset-bottom, 0px)); z-index: 12; }
+        .fo-play .calls-corner { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; position: absolute; right: 3px; bottom: calc(126px + env(safe-area-inset-bottom, 0px)); z-index: 37; }
         /* IZBRANA karta: samo Balatro dvig — vsi podatki so zdaj vidni na vsaki karti v roki */
         .fo-play .hand .card.sel { translate: 0 -10px; z-index: 30; }
         /* "Vlekel si" modal: brez naslova in razlag — samo kartica + gumb; kartica VEČJA, gumb MANJŠI (ne čez cel modal) */
@@ -3230,7 +3230,8 @@ export default function App() {
         .fo-play .reveal-modal .flip-info > .mrow .bigbtn { flex: 0 1 auto; min-width: 190px; max-width: 260px; font-size: 15px; padding: 10px 18px; }
 
         /* ===== ROKA (telefon): portret karte — samo IKONE vlog, 94/42 namesto OVR, velik portret, BREZ prekrivanja ===== */
-        .fo-play .hand { gap: 4px; justify-content: safe center; overflow-x: auto; overflow-y: visible; overscroll-behavior-x: contain; padding: 3px 8px 2px; }
+        /* stranski rezervi 54px: karte v roki (centrirane / scrollane) NE smejo zaiti pod vogalni gumb TRG (levo) in AI (desno) */
+        .fo-play .hand { gap: 4px; justify-content: safe center; overflow-x: auto; overflow-y: visible; overscroll-behavior-x: contain; padding: 3px 54px 2px; }
         .fo-play .hand .card { rotate: 0deg; margin-left: 0; width: clamp(76px, calc(var(--uh) * 21), 104px); min-width: clamp(76px, calc(var(--uh) * 21), 104px); padding: 3px 5px 4px; display: flex; flex-direction: column; }
         .fo-play .hand .card:not(:first-child), .fo-play .hand .card:nth-child(n) { margin-left: 0; rotate: 0deg; } /* povozi pahljačni negativni rob in nagibe — nič se ne prekriva */
         /* vrh: pozicija levo, 94/42 (v postavi/na klopi) desno namesto OVR */
@@ -3434,7 +3435,7 @@ export default function App() {
             <button className="linkbtn" onClick={() => { try { localStorage.setItem("fo-lang", LANG === "en" ? "sl" : "en"); } catch {} window.location.reload(); }}>{LANG === "en" ? "🇸🇮 Slovensko" : "🇬🇧 English"}</button>
           </div>
           {/* diskretna oznaka verzije — da v posnetku vidim, katera je objavljena */}
-          <div style={{ marginTop: 6, fontSize: 10, opacity: 0.4, letterSpacing: 0.5 }}>v0.9.3</div>
+          <div style={{ marginTop: 6, fontSize: 10, opacity: 0.4, letterSpacing: 0.5 }}>v0.9.4</div>
         </div>
         {showRules && <Rules onClose={() => setShowRules(false)} />}
       </div>
