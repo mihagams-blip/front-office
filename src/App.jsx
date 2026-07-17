@@ -1307,7 +1307,7 @@ function buildBonusChips(r, coach) {
 
 // Balatro joker-strip: kompaktne bonus ikonice na vrhu odra (nadomesti nekdanji BonusChips 🧾 gumb).
 // Prvi chip 🧾±N preklaplja popover z razčlenitvijo; ostali chipi = emoji + predznačene točke, tap = razlaga (toast).
-function BonusRow({ chips, activeIdx, onExplain }) {
+function BonusRow({ chips, activeIdx, onExplain, deadCap }) {
   const [open, setOpen] = useState(false);
   const sum = chips.reduce((s, c) => s + c[1], 0);
   const keys = chips.map((c) => c[0]).join("|");
@@ -1338,7 +1338,9 @@ function BonusRow({ chips, activeIdx, onExplain }) {
             {i === activeIdx && <span key={"f" + i} className="cast-float">{v > 0 ? "+" : ""}{v}</span>}
           </button>
         ))}
-        {chips.length === 0 && <span className="bonus-row-hint">{tr("— bonusi se prikažejo tu (peterka, sinergije, coach …)", "— bonuses appear here (lineup, synergies, coach …)")}</span>}
+        {/* ✂️ dead cap kot čip (samo telefon; desktop obdrži ločeno vrstico — čip skrit prek baznega CSS) */}
+        {deadCap > 0 && <button type="button" className="bchip neg deadcap" title={tr("Dead cap (odpuščeni)", "Dead cap (waived)")} onClick={() => onExplain && onExplain(tr(`✂️ Dead cap: +${deadCap} M$ v plačni masi do konca runde (odpuščeni igralci) — šteje v davek in Moneyball.`, `✂️ Dead cap: +${deadCap} M$ on the payroll until the round ends (waived players) — counts toward tax and Moneyball.`))}>✂️<b>+{deadCap}M$</b></button>}
+        {chips.length === 0 && !(deadCap > 0) && <span className="bonus-row-hint">{tr("— bonusi se prikažejo tu (peterka, sinergije, coach …)", "— bonuses appear here (lineup, synergies, coach …)")}</span>}
       </div>
       {open && chips.length > 0 && (
         <div className="bonus-pop">
@@ -1516,6 +1518,7 @@ export default function App() {
   const [screen, setScreen] = useState("menu");
   const [g, setG] = useState(null);
   const [sel, setSel] = useState(null);
+  const [handFocus, setHandFocus] = useState(false); // plavajoč fokus karte v roki (samo ob TAPU; NE po vleku iz kupa — tam si karto že videl v razkritju)
   const [toast, setToast] = useState(null);
   const [showRules, setShowRules] = useState(false);
   const [showIntro, setShowIntro] = useState(false);
@@ -2170,7 +2173,7 @@ export default function App() {
     const c = deck[deck.length - 1];
     SFX.card();
     setG({ ...g, deck: deck.slice(0, -1), hDisc, aDisc, reshuffled, h: { ...g.h, hand: [...g.h.hand, c] }, phase: "action", log: [...g.log, tr(`S skritega kupa si vlekel: ${c.n}.`, `You drew from the hidden deck: ${c.n}.`)] });
-    setSel(c.id);
+    setSel(c.id); setHandFocus(false); // izbrana za podpis, a BREZ fokusa — karto si videl v razkritju
     setReveal(c);
   };
 
@@ -2179,7 +2182,7 @@ export default function App() {
     const disc = asDiscount(card);
     SFX.card();
     setG({ ...g, aDisc: g.aDisc.filter((c) => c.id !== card.id), h: { ...g.h, hand: [...g.h.hand, disc] }, phase: "action", log: [...g.log, tr(`Iz AI-jevih odpuščenih si vzel ${card.n} s popustom (${disc.sal} M$ namesto ${card.origSal}).`, `You took ${card.n} from AI's waived pile at a discount (${disc.sal} M$ instead of ${card.origSal}).`)] });
-    setSel(card.id);
+    setSel(card.id); setHandFocus(false);
     setReveal(disc);
   };
 
@@ -2277,7 +2280,7 @@ export default function App() {
     if (id === "drbine") { if (!g.injured.h) { say(tr("Nisi poškodovan.", "You have no injured player.")); return; } ng = { ...ng, injured: { ...ng.injured, h: null } }; msg = tr("🩺 Dr. Bine: tvoj igralec je spet zdrav.", "🩺 Dr. Feelgood: your player is healthy again."); }
     else if (id === "usluga") { ng = { ...ng, h: { ...ng.h, calls: ng.h.calls, picks: { ...ng.h.picks, s: ng.h.picks.s + 1 } } }; msg = tr("🥈 Usluga iz lige: +1× 🥈 pick.", "🥈 League favor: +1× 🥈 pick."); }
     else if (id === "popust") { ng = { ...ng, discountNext: 8 }; msg = tr("💸 Naslednji podpis to potezo bo −8 M$.", "💸 Next signing this turn will be −8 M$."); }
-    else if (id === "hitra") { if (!g.deck.length) { say(tr("Kup je prazen.", "The deck is empty.")); return; } const [card, ...rest] = g.deck; ng = { ...ng, deck: rest, h: { ...ng.h, hand: [...ng.h.hand, card] } }; msg = tr(`⚡ Hitra poteza: potegnil si ${surname(card.n)} v roko.`, `⚡ Quick move: you drew ${surname(card.n)} into your hand.`); setSel(card.id); }
+    else if (id === "hitra") { if (!g.deck.length) { say(tr("Kup je prazen.", "The deck is empty.")); return; } const [card, ...rest] = g.deck; ng = { ...ng, deck: rest, h: { ...ng.h, hand: [...ng.h.hand, card] } }; msg = tr(`⚡ Hitra poteza: potegnil si ${surname(card.n)} v roko.`, `⚡ Quick move: you drew ${surname(card.n)} into your hand.`); setSel(card.id); setHandFocus(false); }
     else if (id === "kava") { if (!target) { setCallModal({ id }); return; } const { unhappy: _u, basePm: _b, unhappyCause: _c, ...rest } = target; ng = { ...ng, h: { ...ng.h, roster: ng.h.roster.map((c) => c.id === target.id ? { ...rest, pm: target.basePm != null ? target.basePm : target.pm } : c) } }; msg = tr(`😌 ${surname(target.n)} je spet zadovoljen.`, `😌 ${surname(target.n)} is happy again.`); }
     else if (id === "aneks") { if (!target) { setCallModal({ id }); return; } ng = { ...ng, h: { ...ng.h, roster: ng.h.roster.map((c) => c.id === target.id ? { ...c, contract: (c.contract ?? 1) + 1 } : c) } }; msg = tr(`🖋️ ${surname(target.n)}: pogodba +1 leto.`, `🖋️ ${surname(target.n)}: contract +1 year.`); }
     else if (id === "neznana") { const r = Math.random(); if (r < 0.15) { msg = tr("☎️ Klic v prazno — nič se ni zgodilo.", "☎️ A call into the void — nothing happened."); } else if (r < 0.5) { ng = { ...ng, h: { ...ng.h, picks: { ...ng.h.picks, s: ng.h.picks.s + 2 } } }; msg = tr("☎️ Skrivni pokrovitelj: +2× 🥈 pick!", "☎️ Secret patron: +2× 🥈 picks!"); } else if (r < 0.8) { ng = { ...ng, discountNext: 12 }; msg = tr("☎️ Zveza na vrhu: naslednji podpis −12 M$.", "☎️ Connections at the top: next signing −12 M$."); } else { const u = g.h.roster.find((c) => c.unhappy); if (u) { const { unhappy: _u, basePm: _b, unhappyCause: _c, ...rest } = u; ng = { ...ng, h: { ...ng.h, roster: ng.h.roster.map((c) => c.id === u.id ? { ...rest, pm: u.basePm != null ? u.basePm : u.pm } : c) } }; msg = tr(`☎️ Skrivni mediator: ${surname(u.n)} pomirjen.`, `☎️ Secret mediator: ${surname(u.n)} calmed.`); } else { ng = { ...ng, h: { ...ng.h, picks: { ...ng.h.picks, f: ng.h.picks.f + 1 } } }; msg = tr("☎️ Zlati stik: +1× 🥇 pick!", "☎️ Golden contact: +1× 🥇 pick!"); } } }
@@ -2489,7 +2492,7 @@ export default function App() {
       .vals { font-size:11.5px; color:#215c26; background:#e7f3e7; border-radius:5px; padding:1px 5px; margin-top:3px; font-weight:700; display:flex; flex-wrap:wrap; column-gap:9px; }
       .val-chip { white-space:nowrap; }
       /* nova gradnika (94/42 vrh, ikone vlog, fokus kartice, modra vloga v rosterju) — privzeto skriti; vklopi jih SAMO mobilni oder */
-      .pts-split, .icon-row, .mini-split, .hand-detail, .hand-detail-back, .pfocus, .pfocus-extra { display:none; }
+      .pts-split, .icon-row, .mini-split, .hand-detail, .hand-detail-back, .pfocus, .pfocus-extra, .bchip.deadcap { display:none; }
       .sal { font-weight:700; color:#8a6d1a; font-size:13px; }
       .oldsal { text-decoration:line-through; color:#b3a37e; font-weight:600; font-size:11px; }
       .pot { font-size:11px; font-weight:700; margin-top:2px; }
@@ -3008,7 +3011,11 @@ export default function App() {
         .fo-play .stage-top { margin-bottom: 2px; }
         .fo-play .stage-tools > .optbtn { height: 26px; font-size: 11.5px; padding: 0 8px; }
         .fo-play .stage-tools > .infob { width: 26px; height: 26px; font-size: 13px; }
-        .fo-play .bonus-row { flex-wrap: nowrap; overflow-x: auto; min-height: 24px; } /* telefon: nazaj na en h-scroll trak */
+        /* bonusi TAKOJ pod statusom (brez praznega prostora); h-scroll, če jih je veliko */
+        .fo-play .bonus-row { flex-wrap: nowrap; overflow-x: auto; min-height: 24px; margin-top: 0; }
+        .fo-play .bonus-row-wrap { margin-top: 1px; }
+        .fo-play .bchip.deadcap { display: inline-flex; align-items: baseline; background: #f3d9d3; color: #8f1d12; border-color: #d9a99f; } /* TELEFON: dead cap kot čip */
+        .fo-play .deadcap-line { display: none; } /* na telefonu je dead cap čip v bonus-row → ločena vrstica ni potrebna */
         .fo-play .bchip { padding: 2px 7px; font-size: 11px; } /* ~22–24 px visok chip */
         .fo-play .bchip b { font-size: 12px; }
         .fo-play .cast-float { font-size: 13px; }
@@ -3200,9 +3207,10 @@ export default function App() {
         .fo-play .market-pop .fa-row { flex-wrap: wrap; overflow: visible; padding: 4px 0; }
         .fo-play .market-pop .fa-row .card { width: 96px; min-width: 96px; }
         /* trg + skriti kup v ENEM pregledu: karte trga levo, obrnjen kup desno (naključni vlek, polna cena) */
+        /* trg + skriti kup v ENI vrsti: karte trga se NE ovijajo (h-scroll), da kup desno ne zraste v 2-vrstično pošast */
         .fo-play .mkt-body { display: flex; align-items: stretch; gap: 8px; }
-        .fo-play .mkt-body .fa-row { flex: 1; min-width: 0; }
-        .fo-play .pop-deck { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; flex: 0 0 96px; margin: 4px 0; padding: 8px 6px; border-radius: 12px; border: 2px solid #33507e; background: repeating-linear-gradient(135deg, #14294a 0 10px, #182f54 10px 20px); color: #F5EBDC; cursor: pointer; font-family: inherit; }
+        .fo-play .mkt-body .fa-row { flex: 1; min-width: 0; flex-wrap: nowrap; overflow-x: auto; overscroll-behavior-x: contain; padding: 4px 0; }
+        .fo-play .pop-deck { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; flex: 0 0 96px; align-self: stretch; margin: 4px 0; padding: 8px 6px; border-radius: 12px; border: 2px solid #33507e; background: repeating-linear-gradient(135deg, #14294a 0 10px, #182f54 10px 20px); color: #F5EBDC; cursor: pointer; font-family: inherit; }
         .fo-play .pop-deck:disabled { opacity: .5; cursor: default; }
         .fo-play .pop-deck.draw-hi { border-color: #F0B429; animation: deckpulse 1.1s ease-in-out infinite; }
         .fo-play .pop-deck-count { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 12px; background: #F0B429; color: #152744; border-radius: 999px; padding: 0 8px; }
@@ -3334,6 +3342,8 @@ export default function App() {
         .fo-dash .infra-panel { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
         .fo-dash .infra-panel .found-grid { flex: 1 1 auto; min-height: 0; display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 8px; }
         .fo-dash .infra-panel .found-cell { flex: 0 0 236px; max-height: 100%; overflow-y: auto; }
+        /* gumb "Nadgradi" NE sme rasti čez celo celico (bazni .abtn{flex:1} ga razpne); margin-top:auto ga zasidra na DNO kartice */
+        .fo-dash .infra-panel .found-cell .abtn { flex: 0 0 auto; margin-top: auto; padding: 9px 10px; font-size: 13px; }
         /* poletna liga v ozkem stolpcu: celice ena pod drugo (bazni grid minmax(340px) bi prekipel) */
         .fo-dash .dash-stack .found-grid { display: flex; flex-direction: column; flex-wrap: nowrap; gap: 6px; }
         .fo-dash .dash-stack .found-cell { width: 100%; box-sizing: border-box; }
@@ -3444,7 +3454,7 @@ export default function App() {
             <button className="linkbtn" onClick={() => { try { localStorage.setItem("fo-lang", LANG === "en" ? "sl" : "en"); } catch {} window.location.reload(); }}>{LANG === "en" ? "🇸🇮 Slovensko" : "🇬🇧 English"}</button>
           </div>
           {/* diskretna oznaka verzije — da v posnetku vidim, katera je objavljena */}
-          <div style={{ marginTop: 6, fontSize: 10, opacity: 0.4, letterSpacing: 0.5 }}>v0.9.5</div>
+          <div style={{ marginTop: 6, fontSize: 10, opacity: 0.4, letterSpacing: 0.5 }}>v0.9.6</div>
         </div>
         {showRules && <Rules onClose={() => setShowRules(false)} />}
       </div>
@@ -3985,15 +3995,15 @@ export default function App() {
               </span>
             </div>
           </div>
-          {/* Balatro joker-strip: bonusi POD statusno vrstico */}
-          <BonusRow chips={bonusChips} activeIdx={cascActiveIdx} onExplain={say} />
+          {/* Balatro joker-strip: bonusi POD statusno vrstico; dead cap kot čip v isti vrstici */}
+          <BonusRow chips={bonusChips} activeIdx={cascActiveIdx} onExplain={say} deadCap={g.h.deadCap || 0} />
           {/* ☎️ ROLODEX — klici; na telefonu so isti gumbi v .calls-corner nad kupom (ta vrstica je tam skrita) */}
           <div className="rolodex">
             <span className="rolo-lbl">☎️ ROLODEX {(g.h.calls || []).length}/3</span>
             {callChips}
             {(g.h.calls || []).length === 0 && <span className="rolo-empty">{tr("— prazen (klice dobiš z izgubljeno dražbo in ob začetku sezone)", "— empty (you earn calls by losing auctions and at season start)")}</span>}
           </div>
-          {g.h.deadCap > 0 && <div className="hint red">{tr(`✂️ Dead cap: +${g.h.deadCap} M$ v plačni masi do konca runde (odpuščeni igralci).`, `✂️ Dead cap: +${g.h.deadCap} M$ on the payroll until the end of the round (waived players).`)}</div>}
+          {g.h.deadCap > 0 && <div className="hint red deadcap-line">{tr(`✂️ Dead cap: +${g.h.deadCap} M$ v plačni masi do konca runde (odpuščeni igralci).`, `✂️ Dead cap: +${g.h.deadCap} M$ on the payroll until the end of the round (waived players).`)}</div>}
           {g.h.summer && g.h.summer.length > 0 && <div className="hint" style={{ color: "#9a6a13" }}>{tr("☀️ V poletni ligi (letos ni na voljo, počasi raste):", "☀️ In summer league (unavailable this year, growing slowly):")} {g.h.summer.map((c) => `${surname(c.n)} (${c.ovr})`).join(", ")}</div>}
           {(() => {
             const starterIds = new Set(POS.map((p) => g.h.starters[p]).filter((id) => id != null));
@@ -4020,17 +4030,19 @@ export default function App() {
         {/* ROKA — brez naslova, pahljača pove sama; --n za samodejno prekrivanje, ko zmanjka prostora */}
         <div className="panel">
           <div className="hand" style={{ "--n": g.h.hand.length }}>
-            {g.h.hand.map((c) => <PlayerCard key={c.id} c={c} selected={sel === c.id} onClick={() => { setSel(sel === c.id ? null : c.id); if (drawPhase) flashMarket(); }} />)}
+            {g.h.hand.map((c) => <PlayerCard key={c.id} c={c} selected={sel === c.id} onClick={() => { const willSel = sel !== c.id; setSel(willSel ? c.id : null); setHandFocus(willSel); if (drawPhase) flashMarket(); }} />)}
             {g.h.hand.length === 0 && <span style={{ fontSize: 13, color: "#8a7c63" }}>{tr("Roka je prazna.", "Your hand is empty.")}</span>}
           </div>
           {selCard && <>
             <UnlockPreview card={selCard} sCards={starterCards.filter((c) => c.pos !== selCard.pos || c.id === g.h.starters[selCard.pos])} />
             <button className="linkbtn" style={{ marginTop: 6 }} onClick={() => setInspect({ card: selCard, side: "hand" })}>{tr(`ℹ️ Podrobnosti in točke (${surname(selCard.n)})`, `ℹ️ Details and points (${surname(selCard.n)})`)}</button>
-            {/* TELEFON: plavajoč razširjen pogled izbrane karte — klik na ozadje (.hand-detail-back) ali nanjo zapre fokus */}
-            <div className="hand-detail-back" onClick={() => setSel(null)} />
-            <div className="hand-detail" onClick={() => setSel(null)}>
-              <PlayerFocus c={selCard} sCards={starterCards.filter((x) => x.pos !== selCard.pos || x.id === g.h.starters[selCard.pos])} />
-            </div>
+            {/* TELEFON: plavajoč razširjen pogled — SAMO ob tapu (handFocus); po vleku iz kupa je false, ker si karto že videl v razkritju */}
+            {handFocus && <>
+              <div className="hand-detail-back" onClick={() => { setSel(null); setHandFocus(false); }} />
+              <div className="hand-detail" onClick={() => { setSel(null); setHandFocus(false); }}>
+                <PlayerFocus c={selCard} sCards={starterCards.filter((x) => x.pos !== selCard.pos || x.id === g.h.starters[selCard.pos])} />
+              </div>
+            </>}
           </>}
         </div>
 
