@@ -3008,9 +3008,14 @@ export default function App() {
         .fo-play .hand { padding: 10px 8px 8px; }
 
         /* vrh odra: čipi + rolodeks */
-        .fo-play .stage-top { margin-bottom: 2px; }
-        .fo-play .stage-tools > .optbtn { height: 26px; font-size: 11.5px; padding: 0 8px; }
-        .fo-play .stage-tools > .infob { width: 26px; height: 26px; font-size: 13px; }
+        /* TELEFON: statusna vrstica STISNJENA na začetek (ne space-between — ta v zavrteni ozki koloni naredi ogromno vrzel
+           med točkami zgoraj in orodji spodaj). Vse skupaj = točke, jokerji, picki, sklad, peterka tesno → več prostora za oder. */
+        .fo-play .stage-top { margin-bottom: 2px; justify-content: flex-start; gap: 4px 6px; }
+        .fo-play .stage-tools { margin-left: 0; }
+        /* manjši picki / sklad / ⚡Peterka (uporabnik: preveliki) */
+        .fo-play .stage-tools > .optbtn { height: 24px; font-size: 11px; padding: 0 7px; }
+        .fo-play .stage-tools > .picks, .fo-play .stage-tools > .sklad-chip { height: 24px; font-size: 11px; padding: 0 6px; }
+        .fo-play .stage-tools > .infob { width: 24px; height: 24px; font-size: 12px; }
         /* bonusi TAKOJ pod statusom (brez praznega prostora); h-scroll, če jih je veliko */
         .fo-play .bonus-row { flex-wrap: nowrap; overflow-x: auto; min-height: 24px; margin-top: 0; }
         .fo-play .bonus-row-wrap { margin-top: 1px; }
@@ -3454,7 +3459,7 @@ export default function App() {
             <button className="linkbtn" onClick={() => { try { localStorage.setItem("fo-lang", LANG === "en" ? "sl" : "en"); } catch {} window.location.reload(); }}>{LANG === "en" ? "🇸🇮 Slovensko" : "🇬🇧 English"}</button>
           </div>
           {/* diskretna oznaka verzije — da v posnetku vidim, katera je objavljena */}
-          <div style={{ marginTop: 6, fontSize: 10, opacity: 0.4, letterSpacing: 0.5 }}>v0.9.7</div>
+          <div style={{ marginTop: 6, fontSize: 10, opacity: 0.4, letterSpacing: 0.5 }}>v0.9.8</div>
         </div>
         {showRules && <Rules onClose={() => setShowRules(false)} />}
       </div>
