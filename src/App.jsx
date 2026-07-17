@@ -1552,7 +1552,7 @@ export default function App() {
   // z transform:scale pomanjšajo, da se VEDNO prilegajo brez scrolla in nič ni odrezano; razmerje ostane (uniformno skaliranje).
   // Igralni zaslon (.fo-play > .wrap) ima svoj fluidni no-scroll dizajn, zato ga NE skaliramo — modali pa se skalirajo povsod.
   useEffect(() => {
-    let raf = 0;
+    let timer = 0;
     const measure = (el, availH, availW, margin) => {
       el.style.setProperty("--fit", "1"); // izmeri pri naravni velikosti (transform ne vpliva na scrollHeight)
       const ch = el.scrollHeight, cw = el.scrollWidth;
@@ -1562,14 +1562,20 @@ export default function App() {
       el.style.setProperty("--fit", s.toFixed(4));
     };
     const fit = () => {
+      // vizualni okvir = viewport (NE box.clientHeight — .fo zraste z vsebino, kar bi dalo napačen availH); v zavrtenem
+      // načinu je vizualni okvir manjša stranica, zato vzamemo min obeh dimenzij za availH in max za availW.
       const box = document.querySelector(".fo");
       if (!box) return;
-      const availH = box.clientHeight, availW = box.clientWidth; // vizualni okvir (v zavrtenem načinu lokalni box .fo)
+      const vw = window.innerWidth || box.clientWidth, vh = window.innerHeight || box.clientHeight;
+      const rotated = matchMedia("(orientation: portrait) and (max-width: 1024px)").matches; // prisilna ležeča rotacija za 90°
+      const availH = rotated ? vw : vh, availW = rotated ? vh : vw; // v zavrtenem načinu sta osi zamenjani
       const wrap = document.querySelector(".fo:not(.fo-play) > .wrap");
       if (wrap) measure(wrap, availH, availW, 8);
       document.querySelectorAll(".modal").forEach((m) => measure(m, availH, availW, 16));
     };
-    const schedule = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(fit); }; // rAF debounce
+    // setTimeout (NE requestAnimationFrame — ta v ozadnjih/nevidnih zavihkih NE teče, glej marketFlash past); MO opazuje samo
+    // childList (ne attributes), zato nastavljanje --fit ne sproži zanke.
+    const schedule = () => { clearTimeout(timer); timer = setTimeout(fit, 0); };
     schedule();
     // MutationObserver ujame prihod/odhod modalov in menjavo zaslona; ResizeObserver ujame spremembo vsebine/viewporta.
     const mo = new MutationObserver(schedule);
@@ -1578,7 +1584,7 @@ export default function App() {
     ro.observe(document.documentElement);
     window.addEventListener("resize", schedule);
     window.addEventListener("orientationchange", schedule);
-    return () => { cancelAnimationFrame(raf); mo.disconnect(); ro.disconnect(); window.removeEventListener("resize", schedule); window.removeEventListener("orientationchange", schedule); };
+    return () => { clearTimeout(timer); mo.disconnect(); ro.disconnect(); window.removeEventListener("resize", schedule); window.removeEventListener("orientationchange", schedule); };
   }, []);
   const [signOpts, setSignOpts] = useState(null); // izbira ob podpisu: redna cena ali s pickom
   const [offInfo, setOffInfo] = useState(null); // ogled karte v prestopnem roku
@@ -3040,7 +3046,10 @@ export default function App() {
         .fo-play .hand { padding: 5px 6px 2px; }
 
         /* ===== MODALI SE PRILAGODIJO (nikoli scrolla): izbira coacha/filozofije v 2 stolpca, kompaktno ===== */
-        .fo-play .modal { max-width: min(700px, calc(var(--uw) * 95)); max-height: calc(var(--uh) * 100 - 14px); padding: 10px 12px; }
+        .fo-play .modal { max-width: min(560px, calc(var(--uw) * 95)); max-height: calc(var(--uh) * 100 - 14px); padding: 10px 12px; }
+        /* podpis-modal: ozek, en stolpec gumbov (kratki nizi ne potrebujejo širine — sicer razpotegnjen prazen desni prostor) */
+        .fo-play .modal.sign-modal { max-width: min(400px, calc(var(--uw) * 92)); }
+        .fo-play .modal.sign-modal .signopt { display: block; width: 100%; margin: 0; text-align: center; align-items: center; }
         .fo-play .modal h3 { font-size: 15.5px; margin-bottom: 3px; }
         .fo-play .modal > p, .fo-play .modal .evt-text { font-size: 11px; line-height: 1.3; margin-bottom: 6px; }
         .fo-play .modal .coachbtn { display: inline-block; vertical-align: top; width: calc(50% - 6px); margin: 0 3px 6px; padding: 6px 9px; }
@@ -3189,8 +3198,18 @@ export default function App() {
         .fo-play .hand .card.sel .icon-row { flex-direction: column; align-items: flex-start; gap: 1px; }
         .fo-play .hand .card.sel .icon-row em { display: inline; }
         .fo-play .hand .card.sel .card-club { display: block; font-size: 8.5px; }
-        /* plavajoč razširjen pogled izbrane karte: vse informacije + posebnosti pod kartico (fixed → ne premika layouta, brez scrolla) */
-        .fo-play .hand-detail { display: block; position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(66px + env(safe-area-inset-bottom, 0px)); z-index: 34; width: min(430px, calc(100% - 24px)); max-height: 46%; overflow-y: auto; background: #fffdf7; border: 2px solid #152744; border-radius: 14px; padding: 8px 12px; box-shadow: 0 10px 26px rgba(8,16,32,.4); font-family: 'Barlow Condensed', sans-serif; cursor: pointer; }
+        /* plavajoč razširjen pogled izbrane karte: CELA kartica s sliko levo + info/posebnosti desno; širina po VSEBINI (ne pol-prazno);
+           fixed → ne premika layouta, brez scrolla; centriran nad akcijsko vrstico */
+        .fo-play .hand-detail { display: flex; align-items: stretch; gap: 12px; position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(60px + env(safe-area-inset-bottom, 0px)); z-index: 34; width: auto; max-width: min(560px, calc(100% - 20px)); max-height: 58%; overflow-y: auto; background: #fffdf7; border: 2px solid #152744; border-radius: 14px; padding: 10px 12px; box-shadow: 0 10px 26px rgba(8,16,32,.4); font-family: 'Barlow Condensed', sans-serif; cursor: pointer; }
+        /* leva kartica s sliko */
+        .fo-play .hand-detail .hd-photo { flex: 0 0 auto; }
+        .fo-play .hand-detail .hd-face-wrap { width: 112px; background: #fff; border: 1px solid #d8cdb8; border-top: 5px solid; border-radius: 10px; padding: 6px; }
+        .fo-play .hand-detail .hd-facetop { display: flex; align-items: center; justify-content: space-between; }
+        .fo-play .hand-detail .hd-ovr { font-family: 'Archivo Black', 'Arial Black', sans-serif; font-size: 17px; color: #152744; }
+        .fo-play .hand-detail .hd-face { display: block; width: 100%; height: 116px; border-radius: 8px; object-fit: cover; object-position: center 12%; margin: 4px 0; background: #eee6d2; }
+        .fo-play .hand-detail .hd-sal { text-align: center; font-weight: 700; color: #8a6d1a; font-size: 13px; }
+        .fo-play .hand-detail .hd-sal s { color: #b3a37e; font-size: 11px; }
+        .fo-play .hand-detail .hd-body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
         .fo-play .hand-detail .hd-name { font-family: 'Archivo Black', 'Arial Black', sans-serif; font-size: 15px; color: #152744; line-height: 1.1; }
         .fo-play .hand-detail .hd-icons { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: 3px 0; font-weight: 700; font-size: 12px; }
         .fo-play .hand-detail .hd-icons span { display: inline-flex; align-items: center; gap: 3px; }
@@ -3207,6 +3226,13 @@ export default function App() {
         .fo-play .lay-right .mini .mini-split { display: inline-flex; align-items: baseline; gap: 1px; margin-left: auto; font-family: 'Barlow Condensed', sans-serif; font-size: 12px; }
         .fo-play .lay-right .mini .mini-split b { color: #8a7c63; font-weight: 700; }
         .fo-play .lay-right .mini .mini-split b.on { color: #1f5fd0; font-family: 'Archivo Black', 'Arial Black', sans-serif; }
+      }
+      /* ===== LEŽEČE (pravi landscape, NE zavrteni telefon): ne-igralni .fo PRIKLENI na višino viewporta =====
+         Sicer .fo zraste z visoko vsebino (min-height:100vh + brez kapice) → stran se scrolla, dno odrezano (meni/draft/obračun),
+         fitScreen pa meri zrastel .fo → izračuna neuporaben scale ≈ 1. Z fiksno 100dvh + overflow:hidden fit dobi pravi availH in skalira.
+         orientation:landscape se NIKOLI ne prekriva z zavrtenim pokončnim blokom (portrait), zato ta ne pokvari rotacije. */
+      @media (orientation: landscape) {
+        .fo:not(.fo-play) { height: 100vh; height: 100dvh; min-height: 0; }
       }
       /* ===== POKONČNO ≤1024px (telefon/tablica): PRISILNA LEŽEČA — cela igra zavrtena za 90°. =====
          Deluje tudi ob vklopljenem zaklepu vrtenja (iOS/Android): uporabnik telefon samo fizično obrne.
@@ -3300,7 +3326,7 @@ export default function App() {
             <button className="linkbtn" onClick={() => { try { localStorage.setItem("fo-lang", LANG === "en" ? "sl" : "en"); } catch {} window.location.reload(); }}>{LANG === "en" ? "🇸🇮 Slovensko" : "🇬🇧 English"}</button>
           </div>
           {/* diskretna oznaka verzije — da v posnetku vidim, katera je objavljena */}
-          <div style={{ marginTop: 6, fontSize: 10, opacity: 0.4, letterSpacing: 0.5 }}>v0.8.9</div>
+          <div style={{ marginTop: 6, fontSize: 10, opacity: 0.4, letterSpacing: 0.5 }}>v0.9.0</div>
         </div>
         {showRules && <Rules onClose={() => setShowRules(false)} />}
       </div>
@@ -3860,19 +3886,29 @@ export default function App() {
               const syn = previewUnlocks(c, starterCards.filter((x) => x.pos !== c.pos || x.id === g.h.starters[c.pos]));
               return (
                 <div className="hand-detail" onClick={() => setSel(null)}>
-                  <div className="hd-name">{c.unhappy && <><Ico k="sulk" s={15} /> </>}{c.n}</div>
-                  <div className="hd-icons">
-                    <span><PosBadge p={c.pos} sm /> {c.pos}</span>
-                    <span><Ico k={c.tr} s={14} /> {TRAITS[c.tr].n}</span>
-                    <span style={{ color: cp.col }}>{cp.ico} {cp.label}</span>
+                  {/* leva stran: cela kartica s sliko igralca (kot na kartici, večje) */}
+                  <div className="hd-photo">
+                    <div className="hd-face-wrap" style={{ borderTopColor: POS_COLOR[c.pos] }}>
+                      <div className="hd-facetop"><PosBadge p={c.pos} sm /><span className="hd-ovr">{c.ovr}</span></div>
+                      <Face c={c} cls="hd-face" />
+                      <div className="hd-sal">{c.disc ? <><s>{c.origSal}</s> {c.sal} M$</> : `${c.sal} M$`}</div>
+                    </div>
                   </div>
-                  <div className="hd-line">{c.club} · {c.age} {tr("let", "yrs")} · {c.disc ? <>{c.sal} M$ <s>{c.origSal}</s></> : `${c.sal} M$`} · {tr("vpliv", "impact")} {c.pm >= 0 ? "+" : ""}{c.pm}{c.contract != null ? ` · ${c.contract} ${tr("sez.", "seas.")}` : ""}</div>
-                  <div className="hd-pts">{tr("v peterki", "starting")} <b>{spts(c)}</b> {tr("· na klopi", "· bench")} <b>{Math.floor(c.ovr / 2)}</b> {tr("tč", "pts")}</div>
-                  <div className="hd-spec">
-                    <span className="sp">{cp.ico} {agingOutlook(c.age)}</span>
-                    {c.rookie && <span className="sp">{ROOK_TIER[c.tier].ico} {ROOK_TIER[c.tier].n} · {tr("potencial", "potential")} {c.potLow}–{c.potHigh} — {ROOK_TIER[c.tier].job}.</span>}
-                    {c.rookie && c.hook && HOOKS[c.hook] && <span className="sp good">⭑ {HOOKS[c.hook].n}: {HOOKS[c.hook].d}</span>}
-                    {syn.map((u, i) => <span key={i} className={"sp " + (u.good ? "good" : "bad")}>{u.good ? "✨" : "⚠️"} {u.txt}</span>)}
+                  <div className="hd-body">
+                    <div className="hd-name">{c.unhappy && <><Ico k="sulk" s={15} /> </>}{c.n}</div>
+                    <div className="hd-icons">
+                      <span><PosBadge p={c.pos} sm /> {c.pos}</span>
+                      <span><Ico k={c.tr} s={14} /> {TRAITS[c.tr].n}</span>
+                      <span style={{ color: cp.col }}>{cp.ico} {cp.label}</span>
+                    </div>
+                    <div className="hd-line">{c.club} · {c.age} {tr("let", "yrs")} · {tr("vpliv", "impact")} {c.pm >= 0 ? "+" : ""}{c.pm}{c.contract != null ? ` · ${c.contract} ${tr("sez.", "seas.")}` : ""}</div>
+                    <div className="hd-pts">{tr("v peterki", "starting")} <b>{spts(c)}</b> {tr("· na klopi", "· bench")} <b>{Math.floor(c.ovr / 2)}</b> {tr("tč", "pts")}</div>
+                    <div className="hd-spec">
+                      <span className="sp">{cp.ico} {agingOutlook(c.age)}</span>
+                      {c.rookie && <span className="sp">{ROOK_TIER[c.tier].ico} {ROOK_TIER[c.tier].n} · {tr("potencial", "potential")} {c.potLow}–{c.potHigh} — {ROOK_TIER[c.tier].job}.</span>}
+                      {c.rookie && c.hook && HOOKS[c.hook] && <span className="sp good">⭑ {HOOKS[c.hook].n}: {HOOKS[c.hook].d}</span>}
+                      {syn.map((u, i) => <span key={i} className={"sp " + (u.good ? "good" : "bad")}>{u.good ? "✨" : "⚠️"} {u.txt}</span>)}
+                    </div>
                   </div>
                 </div>
               );
@@ -4142,7 +4178,7 @@ export default function App() {
       {/* IZBIRA POGODBE OB PODPISU */}
       {signOpts && (
         <div className="modal-bg" onClick={() => setSignOpts(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+          <div className="modal sign-modal" onClick={(e) => e.stopPropagation()}>
             {(() => {
               const clen = signOpts.contract != null ? signOpts.contract : contractFor(signOpts);
               const clenTxt = LANG === "en" ? (clen === 1 ? "1 season" : `${clen} seasons`) : (clen === 1 ? "1 sezona" : clen === 2 ? "2 sezoni" : `${clen} sezone`);
