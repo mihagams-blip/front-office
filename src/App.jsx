@@ -3238,12 +3238,12 @@ export default function App() {
         .fo-play .calls-corner { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; position: absolute; right: 3px; bottom: calc(126px + env(safe-area-inset-bottom, 0px)); z-index: 37; }
         /* IZBRANA karta: samo Balatro dvig — vsi podatki so zdaj vidni na vsaki karti v roki */
         .fo-play .hand .card.sel { translate: 0 -10px; z-index: 30; }
-        /* "Vlekel si" modal: brez naslova in razlag — samo kartica + gumb; kartica VEČJA, gumb MANJŠI (ne čez cel modal) */
-        .fo-play .reveal-modal h3, .fo-play .reveal-modal .flip-info > p, .fo-play .reveal-modal .flip-info > ul, .fo-play .reveal-modal .flip-info .unlocks, .fo-play .reveal-modal .flip-info .addbox { display: none; }
-        .fo-play .reveal-modal { max-width: min(380px, calc(var(--uw) * 88)); }
-        .fo-play .reveal-modal .auc-card { transform: scale(1.2); transform-origin: top center; margin: 6px 0 30px; }
-        .fo-play .reveal-modal .mrow { justify-content: center; }
-        .fo-play .reveal-modal .flip-info > .mrow .bigbtn { flex: 0 1 auto; min-width: 190px; max-width: 260px; font-size: 15px; padding: 10px 18px; }
+        /* "Vlekel si" modal na telefonu = vodoraven fokus (PlayerFocus) + kompakten gumb; navpična flip-kartica + razlage skrite */
+        .fo-play .reveal-modal h3, .fo-play .reveal-modal .flip-scene, .fo-play .reveal-modal .flip-info > p, .fo-play .reveal-modal .flip-info > ul, .fo-play .reveal-modal .flip-info .unlocks, .fo-play .reveal-modal .flip-info .addbox { display: none; }
+        .fo-play .reveal-modal { width: auto; max-width: min(520px, calc(100% - 20px)); }
+        .fo-play .reveal-modal .flip-info { opacity: 1; } /* brez flip zamika — gumb takoj viden */
+        .fo-play .reveal-modal .mrow { justify-content: center; margin-top: 8px; }
+        .fo-play .reveal-modal .flip-info > .mrow .bigbtn { flex: 0 1 auto; min-width: 180px; max-width: 300px; font-size: 15px; padding: 10px 18px; }
 
         /* ===== ROKA (telefon): portret karte — samo IKONE vlog, 94/42 namesto OVR, velik portret, BREZ prekrivanja ===== */
         /* stranski rezervi 54px: karte v roki (centrirane / scrollane) NE smejo zaiti pod vogalni gumb TRG (levo) in AI (desno) */
@@ -3454,7 +3454,7 @@ export default function App() {
             <button className="linkbtn" onClick={() => { try { localStorage.setItem("fo-lang", LANG === "en" ? "sl" : "en"); } catch {} window.location.reload(); }}>{LANG === "en" ? "🇸🇮 Slovensko" : "🇬🇧 English"}</button>
           </div>
           {/* diskretna oznaka verzije — da v posnetku vidim, katera je objavljena */}
-          <div style={{ marginTop: 6, fontSize: 10, opacity: 0.4, letterSpacing: 0.5 }}>v0.9.6</div>
+          <div style={{ marginTop: 6, fontSize: 10, opacity: 0.4, letterSpacing: 0.5 }}>v0.9.7</div>
         </div>
         {showRules && <Rules onClose={() => setShowRules(false)} />}
       </div>
@@ -4210,6 +4210,8 @@ export default function App() {
         <div className="modal-bg" onClick={() => { if (flipped) setReveal(null); else setFlipped(true); }}>
           <div className="modal reveal-modal" onClick={(e) => { e.stopPropagation(); if (!flipped) setFlipped(true); }}>
             <h3>{flipped ? <>{reveal.disc ? tr("🟢 S popustom: ", "🟢 Discounted: ") : tr("🂠 Vlekel si: ", "🂠 You drew: ")}{reveal.n}</> : tr("🂠 Skriti kup …", "🂠 Hidden deck …")}</h3>
+            {/* telefon: vodoraven fokus (slika levo, podatki desno) namesto navpične flip-kartice — enak videz kot ostali modali */}
+            <PlayerFocus c={reveal} sCards={starterCards} />
             <div className="auc-card flip-scene">
               <div className={"flip-inner" + (flipped ? " flipped" : "")}>
                 <div className="flip-back"><CardBack tell={!reveal.disc && reveal.ovr >= 90 && !flipped} /></div>
