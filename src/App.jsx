@@ -1377,8 +1377,8 @@ function PlayerFocus({ c, sCards }) {
       </div>
       <div className="hd-body">
         <div className="hd-name">{c.unhappy && <><Ico k="sulk" s={15} /> </>}{c.n}</div>
+        {/* pozicije NE ponavljamo — značka je že na kartici s sliko levo */}
         <div className="hd-icons">
-          <span><PosBadge p={c.pos} sm /> {c.pos}</span>
           <span><Ico k={c.tr} s={14} /> {TRAITS[c.tr].n}</span>
           <span style={{ color: cp.col }}>{cp.ico} {cp.label}</span>
         </div>
@@ -2637,7 +2637,7 @@ export default function App() {
       .optbtn:disabled { opacity:.4; }
       .log { font-size:13px; max-height:96px; overflow-y:auto; line-height:1.5; color:#4a4232; }
       .toast { position:fixed; top:14px; left:50%; transform:translateX(-50%); background:#152744; color:#fff; padding:10px 16px; border-radius:10px; z-index:60; font-weight:700; box-shadow:0 4px 12px rgba(0,0,0,.4); max-width:92%; }
-      .modal-bg { position:fixed; inset:0; background:rgba(12,18,32,.72); z-index:40; display:flex; align-items:center; justify-content:center; padding:16px; }
+      .modal-bg { position:fixed; inset:0; background:rgba(12,18,32,.72); z-index:40; display:flex; align-items:center; justify-content:center; padding:16px; backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px); }
       .modal { background:#fffdf7; border-radius:14px; padding:18px; max-width:470px; width:100%; max-height:86vh; overflow-y:auto; }
       .modal h3 { font-family:'Archivo Black','Arial Black',sans-serif; color:#152744; margin-bottom:10px; }
       .modal p, .modal li { font-size:15px; line-height:1.5; }
@@ -2652,6 +2652,8 @@ export default function App() {
       .bidsum { text-align:center; font-family:'Archivo Black','Arial Black',sans-serif; font-size:18px; color:#152744; margin-top:10px; }
       .auc-card { display:flex; justify-content:center; margin:8px 0; }
       .tr-col { max-height:230px; overflow-y:auto; display:flex; flex-wrap:wrap; gap:6px; padding:4px; background:#f7f1e2; border-radius:10px; }
+      /* seznami klicev/ponudb v modalih (deadline, tarče klica): gumbi čez CELO vrstico, ne stisnjeni na 200px */
+      .modal .tr-col .abtn { max-width:none; flex:1 1 100%; text-align:left; }
       .found-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(340px, 1fr)); gap:10px; padding:4px; background:#f7f1e2; border-radius:10px; }
       .found-cell { display:flex; align-items:center; gap:8px; background:#fffdf7; border-radius:10px; padding:6px; box-shadow:inset 0 1px 0 #fff, 0 1px 3px rgba(20,25,40,.12); }
       /* dash zaslona (obračun/prestopni rok): vsebinski stolpci — na namizju vrstice čez celo širino (kot doslej),
@@ -2866,6 +2868,7 @@ export default function App() {
         /* ===== NE-IGRALNI ZASLONI (meni, draft, obračun, prestopni rok, lestvica): vedno v celoti na zaslon =====
            .fo je flex-centriran + overflow:hidden; JS (fitScreen) pomanjša .wrap prek --fit, da se prilega brez scrolla/rezanja.
            Višja specifičnost (:not = razred) povozi splošni .fo{overflow-y:auto} iz zavrtenega bloka. */
+        .fo { --uw: 1vw; --uh: 1dvh; } /* fluidni enoti tudi za ne-igralne zaslone (scroll-modal, dash) — zavrteni blok ju zamenja */
         .fo:not(.fo-play) { display: flex; align-items: center; justify-content: center; overflow: hidden; }
         .fo:not(.fo-play) > .wrap { margin: 0; max-height: none; max-width: none; overflow: visible;
           transform: scale(var(--fit, 1)); transform-origin: center center; flex: 0 0 auto; }
@@ -2873,6 +2876,8 @@ export default function App() {
            3-razredna specifičnost povozi kompaktni fo-play modal (2 razreda). Notranji scroll ugasnjen — skalira se kot celota. */
         .fo:not(.fo-play) .modal, .fo.fo-play .modal { max-height: none; overflow: visible;
           transform: scale(var(--fit, 1)); transform-origin: center center; }
+        /* IZJEMA — dolga besedila (Pravila): scale bi pisavo stisnil v neberljivost; raje polna velikost + interni scroll */
+        .fo .modal.scroll-modal { transform: none; max-height: calc(var(--uh, 1vh) * 88); overflow-y: auto; }
         /* NIKOLI SCROLLA: cela igra živi v 100dvh, vse se skalira; ekspanzije (AI, dnevnik) so plavajoči popupi, ne inline push.
            Fluidni žetoni: karte/mini/pult se s clamp() prilagodijo viewportu (širina iz vw, višina iz dvh) — kot Balatro. */
         .fo-play { --uw: 1vw; --uh: 1dvh; /* vizualni enoti — zavrteni pokončni blok ju zamenja */
@@ -3095,8 +3100,11 @@ export default function App() {
         /* podpis-modal: ozek, en stolpec gumbov (kratki nizi ne potrebujejo širine — sicer razpotegnjen prazen desni prostor) */
         .fo-play .modal.sign-modal { max-width: min(400px, calc(var(--uw) * 92)); }
         .fo-play .modal.sign-modal .signopt { display: block; width: 100%; margin: 0; text-align: center; align-items: center; }
-        /* kratki modali (zavarovalna polica, rehab): ozki, da niso raztegnjeni po nepotrebnem */
+        /* kratki modali (zavarovalna polica, rehab, waive): ozki, da niso raztegnjeni po nepotrebnem */
         .fo-play .modal.narrow-modal { max-width: min(420px, calc(var(--uw) * 92)); }
+        .fo-play .narrow-modal .auc-card { display: none; } /* waive: kartico si ravnokar videl v podrobnostih — ne ponavljaj */
+        /* dražba: dolga razlaga mehanike skrita (pove jo modal Pravila) — rdeče opozorilo "ne moreš podpisati" ostane */
+        .fo-play .auc-modal > p:not(.red) { display: none; }
         .fo-play .modal h3 { font-size: 15.5px; margin-bottom: 3px; }
         .fo-play .modal > p, .fo-play .modal .evt-text { font-size: 11px; line-height: 1.3; margin-bottom: 6px; }
         .fo-play .modal .coachbtn { display: inline-block; vertical-align: top; width: calc(50% - 6px); margin: 0 3px 6px; padding: 6px 9px; }
@@ -3276,8 +3284,8 @@ export default function App() {
         .pfocus .hd-spec .sp { font-size: 11px; line-height: 1.25; color: #4a4232; }
         .pfocus .hd-spec .sp.good { color: #216c2b; }
         .pfocus .hd-spec .sp.bad { color: #b23b2e; }
-        /* plavajoč razširjen pogled izbrane karte v roki: .pfocus v fiksnem okvirju nad akcijsko vrstico */
-        .fo-play .hand-detail { display: block; position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(60px + env(safe-area-inset-bottom, 0px)); z-index: 34; width: auto; max-width: min(560px, calc(100% - 20px)); max-height: 58%; overflow-y: auto; background: #fffdf7; border: 2px solid #152744; border-radius: 14px; padding: 10px 12px; box-shadow: 0 10px 26px rgba(8,16,32,.4); font-family: 'Barlow Condensed', sans-serif; cursor: pointer; }
+        /* plavajoč razširjen pogled izbrane karte v roki: .pfocus v fiksnem okvirju nad akcijsko vrstico; fofade = samo opacity (transform bi podrl centriranje) */
+        .fo-play .hand-detail { display: block; position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(60px + env(safe-area-inset-bottom, 0px)); z-index: 34; width: auto; max-width: min(560px, calc(100% - 20px)); max-height: 58%; overflow-y: auto; background: #fffdf7; border: 2px solid #152744; border-radius: 14px; padding: 10px 12px; box-shadow: 0 10px 26px rgba(8,16,32,.4); font-family: 'Barlow Condensed', sans-serif; cursor: pointer; animation: fofade .15s ease-out; }
         /* nevidno ozadje: klik izven fokusa (drugam po odru) zapre fokus na igralca */
         .fo-play .hand-detail-back { display: block; position: fixed; inset: 0; z-index: 33; }
         /* roka + akcijska vrstica ostaneta nad ozadjem (klikljivi: druga karta preklopi fokus, gumbi delujejo) */
@@ -3355,7 +3363,8 @@ export default function App() {
           min-height: 0; box-sizing: border-box;
           padding: env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px) env(safe-area-inset-top, 0px);
           transform: rotate(90deg); transform-origin: left top; overflow-y: auto; overflow-x: hidden; }
-        .fo-play { --uw: 1dvh; --uh: 1dvw; overflow: hidden; } /* zamenjani osi fluidnih enot; igralni zaslon brez scrolla */
+        .fo { --uw: 1dvh; --uh: 1dvw; } /* zamenjani osi fluidnih enot za VSE zaslone (tudi scroll-modal na meniju/odru) */
+        .fo-play { overflow: hidden; } /* igralni zaslon brez scrolla */
         /* varne robove ureja .fo zgoraj — stolpci NE smejo dodajati še svojih env() (napačna os po rotaciji) */
         .fo-play .lay-left { padding: 8px 10px 16px 10px; }
         .fo-play .lay-right { padding: 8px 12px 64px 12px; } /* večja spodnja rezerva, da gumbi ne prekrijejo kart v roki */
@@ -3435,7 +3444,7 @@ export default function App() {
             <button className="linkbtn" onClick={() => { try { localStorage.setItem("fo-lang", LANG === "en" ? "sl" : "en"); } catch {} window.location.reload(); }}>{LANG === "en" ? "🇸🇮 Slovensko" : "🇬🇧 English"}</button>
           </div>
           {/* diskretna oznaka verzije — da v posnetku vidim, katera je objavljena */}
-          <div style={{ marginTop: 6, fontSize: 10, opacity: 0.4, letterSpacing: 0.5 }}>v0.9.4</div>
+          <div style={{ marginTop: 6, fontSize: 10, opacity: 0.4, letterSpacing: 0.5 }}>v0.9.5</div>
         </div>
         {showRules && <Rules onClose={() => setShowRules(false)} />}
       </div>
@@ -4115,7 +4124,7 @@ export default function App() {
       {/* WAIVE POTRDITEV */}
       {waiveTarget && (
         <div className="modal-bg" onClick={() => setWaiveTarget(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+          <div className="modal narrow-modal" onClick={(e) => e.stopPropagation()}>
             <h3>✂️ Waive: {waiveTarget.n}</h3>
             <div className="auc-card"><PlayerCard c={waiveTarget} onClick={() => {}} /></div>
             <p>{tr(`Igralec gre v tvoj odpad (AI ga lahko vzame s popustom${waiveTarget.ovr >= AUCTION_OVR ? "; ker je superzvezdnik, se sproži DRAŽBA" : ""}). Njegovih ${waiveTarget.sal} M$ pade iz plač, ostane pa dead cap +${deadFor(waiveTarget)} M$ (četrtina plače, najmanj 3) do konca runde.${waiveTarget.ovr >= AUCTION_OVR ? "" : " Nato potegneš 1 karto iz kupa — obupan način, da uloviš manjkajočo pozicijo."}`, `The player goes to your waived pile (AI can grab him at a discount${waiveTarget.ovr >= AUCTION_OVR ? "; being a superstar, an AUCTION triggers" : ""}). His ${waiveTarget.sal} M$ comes off the payroll, but dead cap +${deadFor(waiveTarget)} M$ remains (a quarter of the salary, min 3) until the round ends.${waiveTarget.ovr >= AUCTION_OVR ? "" : " Then you draw 1 card from the deck — a desperate way to chase a missing position."}`)}</p>
@@ -4173,7 +4182,7 @@ export default function App() {
       )}
       {rehab && (
         <div className="modal-bg" onClick={() => setRehab(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+          <div className="modal narrow-modal" onClick={(e) => e.stopPropagation()}>
             <h3>{tr(`🩹 ${rehab.n} je poškodovan`, `🩹 ${rehab.n} is injured`)}</h3>
             <p>{tr(`Do konca runde ne more v prvo peterko (na klopi šteje normalno). Lahko ga pošlješ na rehab za ${rehabCostFor(g, "h")}× 🥈${rehabCostFor(g, "h") === 1 && g.rehabUsed?.h ? " (🩺 Medicinski center)" : ""} — imaš jih ${g.h.picks.s}.`, `He can't start until the round ends (counts normally on the bench). You can send him to rehab for ${rehabCostFor(g, "h")}× 🥈${rehabCostFor(g, "h") === 1 && g.rehabUsed?.h ? " (🩺 Medical center)" : ""} — you have ${g.h.picks.s}.`)}</p>
             <div className="mrow">
@@ -4480,7 +4489,8 @@ export default function App() {
 function Rules({ onClose, log }) {
   return (
     <div className="modal-bg" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+      {/* scroll-modal: dolgo besedilo se NE pomanjša (fit-scale bi ga stisnil v neberljivost) — interni scroll pri polni velikosti pisave */}
+      <div className="modal scroll-modal" onClick={(e) => e.stopPropagation()}>
         <h3>{tr("Pravila", "Rules")}</h3>
         <ul>
           <li><b>{tr("Cilj:", "Goal:")}</b> {tr(`roster 10 igralcev (max 3 na pozicijo), več točk kot AI. Sezona do ${TARGET} točk.`, `a 10-player roster (max 3 per position), more points than the AI. Season to ${TARGET} points.`)}</li>
